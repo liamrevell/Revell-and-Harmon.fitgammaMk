@@ -21,7 +21,7 @@ abstract: >
 header-includes: |
     \usepackage{fancyhdr}
     \pagestyle{fancy}
-    \fancyhead[L]{Revell and Harmon (2023)}
+    \fancyhead[L]{Revell and Harmon (2024)}
     \fancyhead[C]{}
     \fancyhead[R]{Rate heterogeneity}
     \usepackage[singlelinecheck=false]{caption}
@@ -1037,7 +1037,7 @@ In conclusion, we believe that the analyses we illustrate in this article can be
 
 # Data availability
 
-
+This article was written in Rmarkdown [@Xie2018; @Xie2022; @Allaire2023], and developed with the help of both *bookdown* [@Xie2016; @Xie2023] and the posit Rstudio IDE [@Rstudio2020]. All data and markdown code necessary to exactly rebuild the submitted version of this article (including its analyses and figures) are available at [https://github.com/liamrevell/Revell-and-Harmon.fitgammaMk](https://github.com/liamrevell/Revell-and-Harmon.fitgammaMk).
 
 # Acknowledgments
 
