@@ -57,7 +57,7 @@ This article describes a new discrete phenotypic trait evolution model in which 
 
 The $\Gamma$ distribution is a flexible probability distribution that takes a shape resembling that of an exponential function for low values of $\alpha$ (e.g., $\alpha \le 1.0$), and an increasingly bell-like conformation for larger and larger values of $\alpha$ (e.g., $\alpha \ge 4$). Figure 1A shows a set of $\Gamma$ distributions for various values of $\alpha$.
 
-```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="(\\textbf{A}) A set of $\\Gamma$ probability distribution with different values of the shape parameter, $\\alpha$. By setting $\\beta = \\alpha$ the mean of each distribution is equal to 1.0, while $\\alpha$ determines the shape of the distribution in which $\\alpha < 1$ correspond to distributions with high among edge rate heterogeneity. (\\textbf{B}) An example phylogeny with two taxa (\\emph{A} and \\emph{B}) and two trait values of a discrete character (0 and 1). See main text for more details."}
+```{r Revell-and-Harmon-fig1, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="(\\textbf{A}) A set of $\\Gamma$ probability distribution with different values of the shape parameter, $\\alpha$. By setting $\\beta = \\alpha$ the mean of each distribution is equal to 1.0, while $\\alpha$ determines the shape of the distribution in which $\\alpha < 1$ correspond to distributions with high among edge rate heterogeneity. (\\textbf{B}) An example phylogeny with two taxa (\\emph{A} and \\emph{B}) and two trait values of a discrete character (0 and 1). See main text for more details."}
 par(mfrow=c(1,2))
 library(RColorBrewer)
 cols<-brewer.pal(6,"Dark2")
@@ -145,7 +145,7 @@ P(0,1) = \frac{1}{m^3} \displaystyle\sum_{i=1}^{m} \displaystyle\sum_{j=1}^{m} \
 
 Figure 2 illustrates a complete enumeration of the $3^3 = 27$ possible ways that $m = 3$ rates could be distributed across the three edges of our tree of Figure 1B, along with the probability of our observed data at the tips of the tree for $q_{0,1} = q_{1,0} = 0.1$ and $\alpha = 0.7$. To calculate the total probability under this model, we would just sum all of these quantities and divide by 27, as given in equation (3), above.
 
-```{r, echo=FALSE, fig.width=8, fig.height=5, dpi=300, out.width = "100%",fig.cap="The probability of the tip data from Figure 1B given all the 27 possible ways in which three rate categories (i.e., $m = 3$) could be distributed across the three edges of our two taxon tree, in which $q_{0,1} = q_{1,0} = 0.1$ and $\\alpha$ = 0.7. To compute the total probability of the data at the tips of the phylogeny in Figure 1B whilst integrating over discretized $\\Gamma$-distributed rates across edges, we can simply sum these values and divide by 27."}
+```{r Revell-and-Harmon-fig2, echo=FALSE, fig.width=8, fig.height=5, dpi=300, out.width = "100%",fig.cap="The probability of the tip data from Figure 1B given all the 27 possible ways in which three rate categories (i.e., $m = 3$) could be distributed across the three edges of our two taxon tree, in which $q_{0,1} = q_{1,0} = 0.1$ and $\\alpha$ = 0.7. To compute the total probability of the data at the tips of the phylogeny in Figure 1B whilst integrating over discretized $\\Gamma$-distributed rates across edges, we can simply sum these values and divide by 27."}
 alpha<-0.7
 nrates<-3 # number of rate categories
 r<-qgamma(seq(1/(2*nrates),1,by=1/nrates),
@@ -311,7 +311,7 @@ for(i in 1:length(alpha)){
 stopCluster(cl=mc)
 save(alphaRESULTS,file="data/alphaRESULTS.rda")
 ```
-```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity under various values of $\\alpha$. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each generating value. (\\textbf{B}) The difference in log-likelihood between the best-fitting $\\Gamma$ model and the standard M\\emph{k} rate-homogeneous model. In both panels, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers (shown with grey dots). The maximum upper-bound for $\\alpha$ during optimization was set to 1,000."}
+```{r Revell-and-Harmon-fig3, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity under various values of $\\alpha$. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each generating value. (\\textbf{B}) The difference in log-likelihood between the best-fitting $\\Gamma$ model and the standard M\\emph{k} rate-homogeneous model. In both panels, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers (shown with grey dots). The maximum upper-bound for $\\alpha$ during optimization was set to 1,000."}
 options(scipen=6)
 load("data/alphaRESULTS.rda")
 alpha<-c(0.25,0.5,1,2,4,8)
@@ -437,7 +437,7 @@ for(i in 1:length(ntaxa)){
 stopCluster(cl=mc)
 save(powerRESULTS,file="data/powerRESULTS.rda")
 ```
-```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity with $\\alpha = 0.5$ for phylogenies containing various numbers of taxa. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each tree size. As in Figure 3, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers.(\\textbf{B}) Estimated power: the proportion of statistical test in which $\\Gamma$ rate heterogeneity was significant in a likelihood-ratio test with one degree of freedom, the difference in parameter complexity between the M\\emph{k} and $\\Gamma$ models."}
+```{r Revell-and-Harmon-fig4, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity with $\\alpha = 0.5$ for phylogenies containing various numbers of taxa. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each tree size. As in Figure 3, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers.(\\textbf{B}) Estimated power: the proportion of statistical test in which $\\Gamma$ rate heterogeneity was significant in a likelihood-ratio test with one degree of freedom, the difference in parameter complexity between the M\\emph{k} and $\\Gamma$ models."}
 load("data/powerRESULTS.rda")
 ntaxa<-c(50,100,200,400,800,1600)
 alpha<-0.5
@@ -565,7 +565,7 @@ for(i in 1:nrep){
 parallel::stopCluster(cl=mc)
 save(asrRESULTS,file="data/asrRESULTS.rda")
 ```
-```{r, echo=FALSE, fig.width=6, fig.height=4, dpi=300, out.width = "100%", fig.cap="Normalized difference in accuracy of marginal ancestral state estimation under the M\\emph{k} and $\\Gamma$ model when the data were simulated under the $\\Gamma$ model. Raw accuracy was invariably higher for the generating model. See main text for more details."}
+```{r Revell-and-Harmon-fig5, echo=FALSE, fig.width=6, fig.height=4, dpi=300, out.width = "100%", fig.cap="Normalized difference in accuracy of marginal ancestral state estimation under the M\\emph{k} and $\\Gamma$ model when the data were simulated under the $\\Gamma$ model. Raw accuracy was invariably higher for the generating model. See main text for more details."}
 ## code for results
 load("data/asrRESULTS.rda")
 par(mar=c(5.1,4.1,2.1,2.1))
@@ -926,7 +926,7 @@ rownames(aov_table)<-c("directional one-rate M\\emph{k}",
   "ordered ten-rate $\\Gamma$")
 knitr::kable(aov_table,digits=5,escape=FALSE,caption="Log-likelihood, estimated value of $\\alpha$ (if applicable), number of parameters, AIC, and model weights for five different discrete character evolution models of forefoot digit number in squamate reptiles, with and without $\\Gamma$ rate heterogeneity among edges. See main text for more details.")
 ```
-```{r, echo=FALSE, fig.width=7, fig.height=7.2, dpi=300, out.width = "100%",fig.cap="Phylogeny of squamate reptiles from Brandley et al. (2008) showing the number of digits in the forefoot (\\textbf{A}) or hindfoot (\\textbf{B}) of each species, estimated ancestral states under an ordered $\\Gamma$ model, and estimated edge rates. Larger pie charts were used for all nodes in which no state had a marginal scaled likelihood $> 0.95$. See main text for more details."}
+```{r Revell-and-Harmon-fig6, echo=FALSE, fig.width=7, fig.height=7.2, dpi=300, out.width = "100%",fig.cap="Phylogeny of squamate reptiles from Brandley et al. (2008) showing the number of digits in the forefoot (\\textbf{A}) or hindfoot (\\textbf{B}) of each species, estimated ancestral states under an ordered $\\Gamma$ model, and estimated edge rates. Larger pie charts were used for all nodes in which no state had a marginal scaled likelihood $> 0.95$. See main text for more details."}
 lay_mat<-matrix(c(1,2,3,3),2,2,byrow=TRUE)
 layout(lay_mat,heights=c(0.97,0.03))
 ## panel A
