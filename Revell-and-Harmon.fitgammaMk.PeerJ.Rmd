@@ -1,0 +1,1050 @@
+---
+title: 'A discrete character evolution model for phylogenetic comparative biology with $\Gamma$-distributed rate heterogeneity among branches of the tree'
+author:
+  - name: Liam J. Revell
+    affiliation: 1, 2
+    corresponding: true
+    email: liam.revell@umb.edu
+  - name: Luke J. Harmon
+    affiliation: 3
+    corresponding: false
+    email: lukeh@uidaho.edu
+affiliation:
+  - code: 1
+    address: Department of Biology, University of Massachusetts Boston, Boston, MA, USA
+  - code: 2
+    address: Facultad de Ciencias, Universidad Católica de la Santísima Concepción, Concepción, Chile
+  - code: 3
+    address: Department of Biological Sciences, Institute for Bioinformatics and Evolutionary Studies (IBEST), University of Idaho, Moscow, ID, USA
+abstract: >
+  Phylogenetic comparative methods are now widely used to measure trait evolution on the tree of life. Often these methods involve fitting an explicit model of character evolution to trait data and then comparing the explanatory power of this model to alternative scenarios. In this article, we present a new model for discrete trait evolution in which the rate of character change in the tree varies from edge (i.e., "branch") to edge of the phylogeny according to a discretized $\Gamma$ distribution. When the edge-wise rates of evolution are, in fact, $\Gamma$-distributed, we show via simulation that this model can be used to reliably estimate the shape parameter ($\alpha$) of the distribution of rate variation among edges. We also describe how our model can be employed in ancestral state reconstruction, and demonstrate via simulation how doing so will tend to increase the accuracy of our estimated states when the generating edge rates are $\Gamma$-distributed. We discuss how marginal edge rates are estimated under the model, and apply our method to a real dataset of digit number in squamate reptiles, modified from Brandley et al. (2008).
+header-includes: |
+    \usepackage{fancyhdr}
+    \pagestyle{fancy}
+    \fancyhead[L]{Revell and Harmon (2023)}
+    \fancyhead[C]{}
+    \fancyhead[R]{Rate heterogeneity}
+    \usepackage[singlelinecheck=false]{caption}
+    \usepackage{amsmath,mathtools,bm}
+output:
+  bookdown::pdf_book:
+    base_format: rticles::peerj_article
+    number_sections: FALSE
+bibliography: fitgammamk.bib
+csl: evolution.csl
+---
+
+```{r, echo=FALSE, results="hide", message=FALSE}
+library(phytools)
+```
+# Introduction
+
+A common endeavor in phylogenetic comparative analysis combines an estimated phylogeny with species trait data in an effort to better understand the evolution and history of our study clade [@Harmon2019-on; @Revell2022-book]. So doing frequently requires that we specify an explicit mathematical model that postulates how our traits, such as body size, limb lengths, the presence or absence of some feature, or a category of habitat specialization, may have evolved on the tree over macroevolutionary time [@Pagel1994-ui; @Butler2004; @OMeara2006; @OMeara2012; @Beaulieu2013-zo; @Harmon2019-on]. This model might take a variety of flavors, all with its own parameters and attributes. In this case, our analysis may simply involve fitting a set of such models, each capturing a slightly different scenario of trait evolution, to learn which of them best explains the data that we have in our possession [e.g., @Revell2022a]. Once we've identified a suitable trait evolution model, we might use it to estimate model parameters or reconstruct ancestral states [@Harmon2019-on; @Revell2022a; @Revell2024].
+
+When our trait data are discretely-valued (that is, the character only manifests in one of a limited set of conditions), the predominant model employed by comparative biologists to approximate its evolution on the tree is one that's popularly referred to as the M*k* model [@Pagel1999; @Lewis2001; @Harmon2019-on; @Revell2022-book]. This model is so named because the underlying stochastic process it postulates is a memoryless Markov chain (the 'M'), with a *k*-dimensional state space [@Lewis2001]. What we refer to here as the 'state space' is just the number of unique conditions that the Markov chain can assume: two, for example, if our character can take on two different levels; three, if it might exist in three values; etc. Though originally conceived as a model with equal back-and-forth rates of transition between the two, three, or more conditions in the space [@Lewis2001], the M*k* model has now been elaborated to permit an arbitrary number of different rates of character transition between levels [described in @Harmon2019-on; @Revell2022-book]. Fitting such a model could involve estimating up to $k \times (k-1)$ parameters for *k* states (all non-diagonal elements of a $k \times k$ state transition matrix, typically called the **Q** matrix). 
+
+Many of our comparative methods for analyzing trait change assume a uniform tempo of evolutionary change across all the branches and nodes of the tree [@Harmon2019-on]. This is despite the fact that empirical results strongly suggest that the rate of change in phenotypic traits can vary widely across lineages and through time [e.g., @Mahler2010; @Beaulieu2013-zo; @Sander2021]. Even if we are not interested in rate heterogeneity as such, to the extent that we are using a fitted trait model for other inferences, such as ancestral state reconstruction, we should worry that rate heterogeneity can lead us astray. For example, consider the situation where a trait changes only rarely, even over deep time -- but also exhibits rapid change within certain young clades, perhaps for some particular ecological or developmental reason. Imagine that a scientist studying this trait is interested in ancestral character conditions in the clade and fits a homogeneous rate model: since this is (by far) the most common assumption of ancestral character evolution. A homogeneous model with a low rate of change between states will do a poor job explaining rapid evolution of the trait where it occurred, even if it could do a good job explaining our data across the rest of our phylogenetic tree. As a consequence, our fitted model will have a high overall evolutionary rate which, when applied across the tree, greatly increases uncertainty of all ancestral states throughout the phylogenetic history of our group.
+
+The M*k* model has already been extended in a number of interesting ways to permit rate heterogeneity over time, among clades, or as a function of another trait that has been mapped along the nodes and edges of the phylogeny. For instance, @Pagel1994-ui described a clever manner in which an M*k*-type model can be used to approximate the interdependent evolution of two different binary traits, in which the condition of character one influence the transition rates of character two and/or vice versa. Later, @Marazzi2012 and @Beaulieu2013-zo proposed a different model (called the precursor or hidden-rates model, depending on the way in which it's parameterized) whereby one or multiple unobserved conditions can influence our trait's transition rate to other observed values [also see @Revell2022-book]. @Revell2022-book described a polymorphic trait evolution model in which the polymorphic condition (e.g., $a + b$) is postulated to be evolutionarily intermediate between corresponding monomorphic states ($a$ and $b$, in this case). @Revell2021 defined a model in which the rate of evolution of a discrete character is influenced by an explicit, *a priori* hypothesis of rate heterogeneity that's been painted onto the edges and nodes of the phylogeny by the investigator. Lastly, various relaxed molecular clock models have been described in the literature [e.g., @Thorne1998; @Huelsenbeck2000; @Yoder2000; @Drummond2010], and these models are sometimes used to study variable-rate phenotypic trait evolution on trees [e.g., @King2015].
+
+In the present article, we'll describe a new extension of the M*k* model in which the edge-wise rates of evolution of our trait are sampled randomly from a (normalized) $\Gamma$ distribution with shape parameter $\alpha$. This model is in many ways analogous to the popular $\Gamma$ rate heterogeneity model for molecular sequence evolution that's commonly used for phylogeny estimation [e.g., @Yang1994; @Felsenstein2004-ab]. In our case, however, we'll be assuming that that rate of evolution for a single discrete trait changes from edge to edge according to an uncorrelated $\Gamma$ (rather than varying by nucleotide site). This article is intended to provide a description of the method, which has already been implemented in the popular R package *phytools* [@Revell2012; @Revell2024], a preliminary exploration of its statistical properties, and an empirical example based on the evolution of digit number in squamate reptiles using data adapted from @Brandley2008.
+
+# Model, Methods, and Results
+
+## The model
+
+This article describes a new discrete phenotypic trait evolution model in which the relative rates of character evolution varies from edge to edge according to an uncorrelated $\Gamma$ distribution with shape parameter $\alpha$ and mean of 1.0. (A mean of 1.0 is obtained by setting the second parameter of the $\Gamma$ distribution, $\beta$, to $\beta = \alpha$.) Note that, much as it is for models of molecular sequence evolution, this assumption does not constrain the average rate of character change, nor the relative rates of state changes of different types -- both of which are given by the transition matrix of the process, **Q**.
+
+The $\Gamma$ distribution is a flexible probability distribution that takes a shape resembling that of an exponential function for low values of $\alpha$ (e.g., $\alpha \le 1.0$), and an increasingly bell-like conformation for larger and larger values of $\alpha$ (e.g., $\alpha \ge 4$). Figure 1A shows a set of $\Gamma$ distributions for various values of $\alpha$.
+
+```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="(\\textbf{A}) A set of $\\Gamma$ probability distribution with different values of the shape parameter, $\\alpha$. By setting $\\beta = \\alpha$ the mean of each distribution is equal to 1.0, while $\\alpha$ determines the shape of the distribution in which $\\alpha < 1$ correspond to distributions with high among edge rate heterogeneity. (\\textbf{B}) An example phylogeny with two taxa (\\emph{A} and \\emph{B}) and two trait values of a discrete character (0 and 1). See main text for more details."}
+par(mfrow=c(1,2))
+library(RColorBrewer)
+cols<-brewer.pal(6,"Dark2")
+x<-seq(0,4,length.out=200)
+G0.25<-dgamma(x,0.25,0.25)
+G0.5<-dgamma(x,0.5,0.5)
+G1.0<-dgamma(x,1,1)
+G2.0<-dgamma(x,2,2)
+G4.0<-dgamma(x,4,4)
+G8.0<-dgamma(x,10,10)
+par(mar=c(5.1,4.1,2.1,1.1))
+plot(x,G0.25,type="l",bty="n",
+  ylab="density",xlab="relative rate",
+  las=1,col=cols[1],lwd=2)
+lines(x,G0.5,col=cols[2],lwd=2)
+lines(x,G1.0,col=cols[3],lwd=2)
+lines(x,G2.0,col=cols[4],lwd=2)
+lines(x,G4.0,col=cols[5],lwd=2)
+lines(x,G8.0,col=cols[6],lwd=2)
+legend("topright",c(
+  expression(alpha==0.25),
+  expression(alpha==0.5),
+  expression(alpha==1.0),
+  expression(alpha==2.0),
+  expression(alpha==4.0),
+  expression(alpha==8.0)
+  ),cex=0.9,
+  lwd=2,col=cols,bty="n")
+mtext("A",line=0.5,adj=-0.1,font=2,cex=1.5)
+tree<-read.tree(text="((A:1.0,B:1.0):1);")
+plotTree(tree,offset=0.5,lwd=6,fsize=2,
+  xlim=c(0.75,2.25),
+  ylim=c(-0.3,2.25),
+  ftype="off",mar=c(1.1,4.1,2.1,1.1),
+  direction="upwards")
+text(x=c(1,2),y=c(2,2)+0.25,tree$tip.label,font=3,
+  cex=2)
+points(x=c(1,2),y=c(2,2),cex=3,pch=21,
+  bg=c("black","white"))
+text(x=c(1,2),y=c(2,2),0:1,col=c("white","black"))
+points(x=c(1.44,1.56),y=c(-0.1,-0.1),cex=3,pch=21,
+  bg=c("black","white"))
+text(x=c(1.44,1.56),y=c(-0.1,-0.1),0:1,col=c("white","black"))
+text(x=1.5,y=-0.15,",",cex=1.5)
+points(x=c(1.44,1.56),y=c(1.1,1.1),cex=3,pch=21,
+  bg=c("black","white"))
+text(x=c(1.44,1.56),y=c(1.1,1.1),0:1,col=c("white","black"))
+text(x=1.5,y=1.05,",",cex=1.5)
+text(x=1.5,y=0.5,expression('t'[A][B]),font=3,pos=2)
+text(x=1,y=1.5,expression('t'[A]),font=3,pos=2)
+text(x=2,y=1.5,expression('t'[B]),font=3,pos=2)
+mtext("B",line=0.5,adj=-0.1,font=2,cex=1.5)
+```
+
+Under a standard M*k* model, the rates of transition between character levels are dictated entirely by a $k \times k$ matrix **Q** in which each element, $q_{i,j}$ (for all $i \neq j$), gives the instantaneous transition rate from condition *i* to condition *j*, and the diagonal is equal to the negative row sum [@Revell2022-book]. For a binary trait (i.e., $k = 2$), this transition matrix (**Q**) would appear as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+\mathbf{Q} = \begin{bmatrix} -q_{0,1} & q_{0,1} \\ q_{1,0} & -q_{1,0} \end{bmatrix}
+\end{aligned}
+\end{equation}
+
+To compute the probability of character change under a standard M*k* model, given **Q** and any arbitrary elapsed time, *t*, we simply calculate $\mathbf{P} = \exp(\mathbf{Q} \times t)$, in which $\exp(\mathbf{X})$ indicates the matrix exponential of **X**. This operation gives us a new $k \times k$ matrix, **P**, in which $p_{i,j}$ is equal to the probability of beginning the time interval, *t*, in condition *i* and ending in condition *j* under our modeled process.
+
+To see how we then go about calculating the probability of a set of data at the tips of the tree for any particular value of **Q**, we can begin by considering the simplified tree and data pattern of Figure 1B. In this tree, the two nominal taxa of our phylogeny, *A* and *B*, each exhibit different conditions for the character: taxon *A* has the state 0 (shown in black); while taxon *B* is found in condition 1 (shown in white). Logically, the probability of observing this set of states must be equal to the probability of starting (at the root) in state 0, here written as $\pi_{0}$, multiplied by the probability of finding the single internal node of our tree in state 0 after elapsed time $t_{AB}$, $P(0 | 0, t_{AB})$, multiplied by the probability of the tip *A* being observed in state 0 after elapsed time $t_{A}$, $P(0 | 0, t_{A})$, multiplied in turn by the probability of tip *B* being observed in state 1 after elapsed time $t_{B}$, $P(1 | 0, t_{B})$ -- and then summed across both possible root state and all four possible internal node state combinations. When written down, this probability is as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+P(0 , 1) = \pi_{0} \times P(0 | 0, t_{AB}) \times P(0 | 0, t_{A}) \times P(1 | 0, t_{B})\\ 
++ \pi_{0} \times P(1 | 0, t_{AB}) \times P(0 | 1, t_{A}) \times P(1 | 1, t_{B})\\ 
++ \pi_{1} \times P(1 | 1, t_{AB}) \times P(0 | 1, t_{A}) \times P(1 | 1, t_{B})\\ 
++ \pi_{1} \times P(0 | 1, t_{AB}) \times P(0 | 0, t_{A}) \times P(1 | 0, t_{B})
+\end{aligned}
+\end{equation}
+
+Though for a two-taxon tree, such as the one shown in Figure 1B, the value of equation (2) is straightforward to compute, doing so in the same way for a tree with three, four, or more species would be increasingly onerous if it involved the explicit enumeration of all possible states at all internal nodes of the phylogeny, as we've done here. Fortunately, @Felsenstein1981 described an efficient "pruning" algorithm to compute this probability via a single post-order (tip to root) traversal of the tree.
+
+Now to account for variation in the rate of evolution from edge to edge of our phylogeny, we'll use a discretization of the $\Gamma$ distribution following @Yang1994. Directly following @Yang1994, we first set *m* rate categories [*k* in @Yang1994, but *m* here to avoid confusion with our *k* different character states]. We then subdivide the range of our relative rates, $r$ (which could theoretically vary from 0 to $\infty$, the range of a $\Gamma$-distributed random variable), into $m$ evenly spaced bins. To compute the median of each bin, we need to find the values of each $r_{i}$ (that is, $r_{1}$, $r_{2}$, ..., $r_{m}$) at the percentiles of our $\Gamma$ distribution that correspond to the midpoints of each of $m$ bins: $1/(2m)$, $3/(2m)$, ..., $(2m - 1)/(2m)$ [@Yang1994]: quantities that are straightforward to calculate using a computer. Referring back, once again, to our two-taxon case of Figure 1B, the probability of our data in which the relative edge rates vary as a random variable drawn from a discretized, uncorrelated $\Gamma$ distribution can be approximated as follows, in which $r_{A}=r_{i}$ indicates that the edge leading to taxon *A* has relative rate $r_{i}$, and so on.
+
+\begin{equation}
+\begin{aligned}[b]
+P(0,1) = \frac{1}{m^3} \displaystyle\sum_{i=1}^{m} \displaystyle\sum_{j=1}^{m} \displaystyle\sum_{k=1}^{m} P(0,1|r_{A}=r_{i},r_{B}=r_{j},r_{AB}=r_{k})
+\end{aligned}
+\end{equation}
+
+Figure 2 illustrates a complete enumeration of the $3^3 = 27$ possible ways that $m = 3$ rates could be distributed across the three edges of our tree of Figure 1B, along with the probability of our observed data at the tips of the tree for $q_{0,1} = q_{1,0} = 0.1$ and $\alpha = 0.7$. To calculate the total probability under this model, we would just sum all of these quantities and divide by 27, as given in equation (3), above.
+
+```{r, echo=FALSE, fig.width=8, fig.height=5, dpi=300, out.width = "100%",fig.cap="The probability of the tip data from Figure 1B given all the 27 possible ways in which three rate categories (i.e., $m = 3$) could be distributed across the three edges of our two taxon tree, in which $q_{0,1} = q_{1,0} = 0.1$ and $\\alpha$ = 0.7. To compute the total probability of the data at the tips of the phylogeny in Figure 1B whilst integrating over discretized $\\Gamma$-distributed rates across edges, we can simply sum these values and divide by 27."}
+alpha<-0.7
+nrates<-3 # number of rate categories
+r<-qgamma(seq(1/(2*nrates),1,by=1/nrates),
+  alpha,alpha)
+r<-r/mean(r)
+E<-as.matrix(
+  expand.grid(replicate(nrow(tree$edge),
+  1:nrates,simplify=FALSE)))
+foo<-function(ind,tree,r){
+  tree$edge.length<-tree$edge.length*r[ind]
+  tree
+}
+rate_trees<-apply(E,1,foo,tree=tree,r=r)
+Q<-matrix(c(-1,1,1,-1),2,2,byrow=TRUE,
+  dimnames=list(0:1,0:1))/10
+x<-setNames(c(0,1),LETTERS[1:2])
+lik<-sapply(rate_trees,function(t,x,Q) 
+  exp(logLik(fitMk(t,x,fixedQ=Q))),
+  x=x,Q=Q)
+lik<-lik
+col_func<-function(x){
+  rgb<-colorRamp(viridisLite::viridis(n=10))(x)
+  make.transparent(
+    rgb(rgb[1],rgb[2],rgb[3],maxColorValue=255),0.5)
+}
+vv<-c(1,1,2,2,3,3,4,4,5,5,6,6)
+mat<-matrix(
+  c(vv,vv+6,vv+12,vv+18,29,29,29,vv[1:6]+24,29,29,29,rep(28,12)),
+  6,12,byrow=TRUE)
+layout(mat)
+for(i in 1:length(rate_trees)){
+  plotTree(rate_trees[[i]],fsize=0.5,lwd=1,plot=FALSE,
+    mar=rep(0,4),
+    ylim=1.1*c(0,max(r)*max(nodeHeights(tree))),
+    xlim=c(0,Ntip(tree)+1),direction="upwards")
+  pp<-get("last_plot.phylo",envir=.PlotPhyloEnv)
+  polygon(par()$usr[c(1,2,2,1)],par()$usr[c(3,3,4,4)],
+    col=col_func((lik[i]-min(lik))/diff(range(lik))),
+    border=FALSE)
+  plotTree(rate_trees[[i]],ftype="off",lwd=1,add=TRUE,
+    ylim=1.1*c(0,max(r)*max(nodeHeights(tree))),
+    xlim=c(0,Ntip(tree)+1),
+    direction="upwards")
+  points(pp$xx[1:2],pp$yy[1:2]+min(r)*min(tree$edge.length),
+    pch=21,bg=c("black","white"),
+    cex=2)
+}
+plot(NA,xlim=c(-1,1),ylim=c(-1,1),mar=rep(0,4),axes=FALSE,
+  bty="n")
+options(scipen=6)
+add.color.bar(1.6,cols=viridisLite::viridis(n=100),
+  title="probability of the data",lims=range(lik),digits=5,lwd=5,
+  subtitle="under each set of rates among edges",prompt=FALSE,
+  x=-0.8,y=0,fsize=1.3)
+```
+
+As before, this sum would be very onerous to compute (and, indeed, impossible for even relatively modest-sized trees) were it not for the pruning algorithm of @Felsenstein1981. To implement pruning with (discrete) $\Gamma$-distributed rate heterogeneity, we also depend on the further equality that for evolution along a single edge of the tree of length *t*, the probability of ending in state 1 given that the edge began in state 0 can be written as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+P(1|0,t) = \frac{1}{m} \displaystyle\sum_{i=1}^{m} P(1|0,t,r=r_{i})
+\end{aligned}
+\end{equation}
+
+That is to say, the probability of starting in condition 0 and then after some time *t* being in state 1, given that the rate of evolution over time *t* is a discretized $\Gamma$-distributed random variable with conditions $r = r_{1}$, $r_{2}$, ..., $r_{m}$ each with probability $\frac{1}{m}$, is just the probability of each rate category (here they are even, hence $\frac{1}{m}$) times the probability of the state given that rate. More generally, the *matrix* of transition probabilities between states after time *t* can be expressed as a function of probability of each rate category times the exponentiated product $\mathbf{Q}r_{i}t$, in which $\exp(\mathbf{X})$ is the matrix exponential of \textbf{X}.
+
+\begin{equation}
+\begin{aligned}[b]
+\mathbf{P}_{t} = \frac{1}{m} \displaystyle\sum_{i=1}^{m} \exp(\mathbf{Q} \times r_{i} \times t)
+\end{aligned}
+\end{equation}
+
+As we can compute the probability of any data pattern on the tree for a given shape parameter ($\alpha$), number of rate categories ($m$), and transition matrix **Q**, we can likewise find the set of such values that maximize this probability -- in other words, the Maximum Likelihood (ML) estimate. That's what we will do here. As a side note to this observation, we'll also take this opportunity to observe that it would be relatively straightforward to fit the model of this article using Bayesian MCMC instead of ML. Indeed, the *phytools* function in which this model has been implemented (`fitgammaMk`), also exports the likelihood expression of the model that *phytools* users could easily pass along their favorite MCMC algorithm. (This would, of course, require the investigator to supply appropriate prior probability distributions for $\alpha$ and **Q**, a task that has been contemplated in other literature.)
+
+In this article, we focus on three ways that readers might consider making use of this model, although others are also certainly possible. First, researchers can estimate $\alpha$, which gives insight into how variable the tempo of evolution has been across the branches or clades of our phylogeny. Low values of $\alpha$ correspond to high edge-wise rate heterogeneity, whereas high values of $\alpha$, relatively little rate variation from branch to branch of the tree. Second, investigators can calculate (conditioning on a transition model and ML value for $\alpha$) the marginal likelihoods that each edge of the tree is in each of the $m$ rate categories of the fitted model. This will be done simply by traversing the tree, edge by edge, holding the rate on a given edge constant to each of the $m$ rate categories, and then computing the marginal probability of the data (integrating over all $m$ rates across all of the *other* edges of the tree) for each rate. Since these marginal likelihoods can also be interpreted as the posterior probabilities that each edge is in each of our $m$ rate conditions, a researcher can in turn proceed to use them as weights for the computation of marginal edge rates (as the simple weighted mean of the median rate of each category) for each branch of the phylogeny. This will help researchers to measure precisely how variation in the tempo of evolution is distributed across their phylogenetic tree. Finally, third, investigators might use the model to perform marginal or joint ancestral state reconstruction at the nodes of their tree. This is undertaken in exactly the usual way [see @Yang2014-uo; @Revell2022-book], but in which we integrate over each of the $m$ rate categories as we traverse the tree. We'll illustrate all three of these applications below.
+
+## Estimation of $\alpha$
+
+Now that we've expressed, in principle, how one might go about computing the probability of a set of data for any particular value of the (discretized) $\Gamma$ distribution shape parameter, $\alpha$, and state transition matrix, **Q**, we used numerical simulations to establish whether or not we can, in fact, estimate $\alpha$ in practice. Note that these initial simulations have not been designed to explore the range of conditions (in taxon number, transition models, character state levels, or values of $\alpha$) that might be encountered in an empirical study. To the contrary, we decided to use a small number of 'maximally-powered' simulations that we anticipated might give us the *best* chance of reliably measuring rate heterogeneity as a proof-of-concept that $\Gamma$-distributed rate heterogeneity of a single discrete phenotypic trait can be detected if it exists. We'll broaden our simulation conditions in subsequent sections of this article (focused on statistical power and marginal ancestral state estimation), and also hope to see the wider variety of numerical simulations that will be required to understand the study of rate heterogeneity from a single character in future articles by us or others.
+
+Thus, to (as much as reasonably possible) *maximize* our power to estimate $\alpha$, we simulated a total of twenty 2,000 species, pure-birth (Yule) phylogenies, rescaling each tree to have a total depth of 10 time unit. We sampled the relative edge rates of each tree from a $\Gamma$ distribution with a total of *six* different values of the $\Gamma$ shape parameter, $\alpha$: 0.25, 0.5, 1.0, 2.0, 4.0, and 8.0. (Note that although our model for estimation is a discretized $\Gamma$ distribution, we intentionally elected to use a continuous $\Gamma$ distribution for simulation both here and in subsequent sections of this article. We're thus also testing how reasonably-well our discretization of $\Gamma$ approximates underlying continuous rate variation among edges.) These simulated values of $\alpha$ varied from very high rate heterogeneity among edges ($\alpha \le 1.0$) to relatively low rate heterogeneity ($\alpha \ge 4.0$; Figure 1A). Having sampled edge rates, we next simulated a single phenotypic character vector on each tree. We used the following generating value of **Q** for an ordered, three-state character with conditions *a*, *b*, and *c*, and a single transition rate, $q=0.5$, between adjacent states.
+
+$$\mathbf{Q} = \begin{bmatrix}-q & q & 0 \\ q & -2q &  q \\ 0 &  q & -q \end{bmatrix} = \begin{bmatrix}-0.5 & 0.5 & 0.0\\ 0.5 & -1.0 & 0.5 \\ 0.0 & 0.5 & -0.5\end{bmatrix}$$
+
+For each tree and data vector, we then proceeded to fit our variable-rate model using ML, specifying the known *structure* of the transition process (that is, the order of character evolution and the number of distinct rate parameters of **Q**), but simultaneously estimating the instantaneous transition rate (*q*) and $\Gamma$ shape parameter ($\alpha$) -- arbitrarily fixing the number of rate categories ($m$) to $m = 8$.
+
+In addition to fitting our $\Gamma$ rate heterogeneous model, for each tree and dataset we *also* fit a rate homogeneous (i.e., 'standard') M*k* model, likewise fixing the model structure to its generating value. We then measured the difference in log-likelihood between the generating rate heterogeneous ($\Gamma$) model and our fitted rate homogeneous (M*k*) model. For each phylogeny and set of simulated data, we undertook a total of ten optimization iterations of both the $\Gamma$ and standard M*k* models, each with random starting values for $\alpha$ (if applicable) and the transition rate between states (*q*), to help ensure convergence to the ML solution in each case. We invariably assumed a prior distribution at the root ($\pi$) following FitzJohn et al. (2009; this has been described as treating the root state as a 'nuisance parameter' of the model).
+
+```{r, eval=FALSE, echo=FALSE}
+## set seed
+set.seed(99)
+## load packages
+library(foreach)
+library(parallel)
+library(doParallel)
+## LR test function
+lr.test<-function(obj1,obj2){
+  l1<-logLik(obj1)
+  l2<-logLik(obj2)
+  LR<-2*(l2-l1)
+  as.numeric(
+    pchisq(LR,df=attr(l2,"df")-attr(l1,"df"),
+    lower.tail=FALSE))
+}
+## simulation conditions
+niter<-10
+nrep<-20
+alpha<-c(0.25,0.5,1,2,4,8)
+ntaxa<-2000
+## set number of cores to use
+ncores<-min(c(parallel::detectCores()-2,
+  niter))
+## create parallel socket cluster
+mc<-makeCluster(ncores,type="PSOCK")
+registerDoParallel(cl=mc)
+## results matrix
+alphaRESULTS<-matrix(NA,nrep*length(alpha),5,
+  dimnames=list(1:(nrep*length(alpha)),
+  c("alpha","est.alpha","est.q","logL","P")))
+## generate random tree(s)
+trees<-pbtree(n=ntaxa,scale=10,nsim=nrep)
+## generate Q matrix for simulation
+Q<-matrix(c(
+  -0.5, 0.5, 0.0,
+   0.5,-1.0, 0.5,
+   0.0, 0.5,-0.5),3,3,
+  dimnames=list(letters[1:3],letters[1:3]))
+## design matrix of model
+MODEL<- matrix(c(
+  0,1,0,
+  1,0,1,
+  0,1,0),3,3,
+  dimnames=list(letters[1:3],letters[1:3]))
+for(i in 1:length(alpha)){
+  for(j in 1:nrep){
+    ## simulate data
+    rates<-rgamma(n=nrow(trees[[j]]$edge),alpha[i],alpha[i])
+    sim_tree<-trees[[j]]
+    sim_tree$edge.length<-trees[[j]]$edge.length*rates
+    x<-sim.Mk(sim_tree,Q)
+    x<-to.matrix(x,letters[1:ncol(Q)])
+    plotTree(sim_tree,ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
+    tmp<-bquote(alpha==.(round(alpha[i],3)))
+    title(main=tmp)
+    fits<-foreach(k=1:niter)%dopar%{
+      phytools::fitgammaMk(trees[[j]],x,model=MODEL,min.alpha=0.001,
+        pi="fitzjohn",rand_start=TRUE,nrates=8)
+    }
+    logL<-sapply(fits,logLik)
+    best_fit<-fits[[which(logL==max(logL))[1]]]
+    fits<-foreach(k=1:niter)%dopar%{
+      phytools::fitMk(trees[[j]],x,model=MODEL,
+        pi="fitzjohn",rand_start=TRUE)
+    }
+    logL<-sapply(fits,logLik)
+    fit_null<-fits[[which(logL==max(logL))[1]]]
+    alphaRESULTS[(i-1)*nrep+j,]<-
+      c(alpha[i],best_fit$alpha,best_fit$rates,
+        logLik(best_fit),lr.test(fit_null,best_fit))
+    ## print(alphaRESULTS[1:((i-1)*nrep+j),])
+  }
+}
+stopCluster(cl=mc)
+save(alphaRESULTS,file="data/alphaRESULTS.rda")
+```
+```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity under various values of $\\alpha$. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each generating value. (\\textbf{B}) The difference in log-likelihood between the best-fitting $\\Gamma$ model and the standard M\\emph{k} rate-homogeneous model. In both panels, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers (shown with grey dots). The maximum upper-bound for $\\alpha$ during optimization was set to 1,000."}
+options(scipen=6)
+load("data/alphaRESULTS.rda")
+alpha<-c(0.25,0.5,1,2,4,8)
+par(bty="n",mfrow=c(1,2),mar=c(5.1,4.1,2.1,1.1))
+boxplot(alphaRESULTS[,"est.alpha"]~as.factor(alphaRESULTS[,"alpha"]),log="y",
+  bty="n",xlab=expression(paste(alpha," shape parameter")),
+  ylab=expression(paste("estimated value of ",alpha)),las=1,cex.axis=0.8,
+  xlim=c(-0.5,6.5),ylim=c(0.1,1000))
+abline(h=alpha,lty="dashed",col="blue")
+boxplot(alphaRESULTS[,"est.alpha"]~as.factor(alphaRESULTS[,"alpha"]),log="y",
+  add=TRUE,cex=1.2,pch=21,bg="grey",las=1,cex.axis=0.8)
+for(i in 1:length(alpha)){
+  tmp<-bquote(alpha==.(round(alpha[i],3)))
+  text(x=-0.7,y=1.2*alpha[i],tmp,pos=4,cex=0.8)
+}
+legend("topleft",expression(paste("generating value of ",alpha)),
+  lwd=1,col="blue",lty="dashed",bty="n",cex=0.8)
+mtext("A",line=0.5,adj=-0.1,font=2,cex=1.5)
+foo<-function(p) qchisq(p,df=1,lower.tail=FALSE)/2
+boxplot(foo(alphaRESULTS[,"P"])~as.factor(alphaRESULTS[,"alpha"]),
+  bty="n",xlab=expression(paste(alpha," shape parameter")),
+  ylab=expression(paste(Delta," log(L)")),las=1,cex.axis=0.8,
+  xlim=c(-0.5,6.5),cex=1.2,pch=21,bg="grey")
+abline(h=foo(0.05),lty="dashed",lwd=1,col="red")
+boxplot(foo(alphaRESULTS[,"P"])~as.factor(alphaRESULTS[,"alpha"]),
+  bty="n",xlab=expression(paste(alpha," shape parameter")),
+  ylab=expression(paste(Delta," log(L)")),las=1,cex.axis=0.8,
+  xlim=c(-0.5,6.5),add=TRUE,cex=1.2,pch=21,bg="grey")
+legend("topright","threshold for statistical significance",
+  lwd=1,col="red",cex=0.8,lty="dashed",bty="n")
+mtext("B",line=0.5,adj=-0.1,font=2,cex=1.5)
+```
+
+Figure 3A shows the distribution of ML estimated values of $\alpha$ for each simulated level of rate heterogeneity. As a general rule, for relatively low values of $\alpha$ (that is, high rate heterogeneity among edges: $\alpha \le 1.0$), the mean and median estimated values of $\alpha$ were quite close to their corresponding generating quantities: highlighted by the horizontal dashed blue lines (Figure 3A). For increasing generating values of $\alpha$ (that is, *decreasing* rate heterogeneity among edges), estimated $\alpha$ tended to be upwardly biased. This pattern was especially marked for $\alpha = 8.0$, in which many optimization iterations hit the pre-specified upper-bound of optimization ($\alpha = 1,000$; Figure 3A).
+
+Measurement of the difference in model fit between the $\Gamma$ rate heterogeneous model and the M*k* model showed a largely consistent trend (Figure 3B). In particular, low $\alpha$ (that is, *high* rate heterogeneity among edges) tended to result in much higher model fit of the variable-rate $\Gamma$ model compared to the standard M*k* model, whereas this advantage declined for increasing $\alpha$ (decreasing rate heterogeneity among edges). Notably, even on a tree with 2,000 tips, none of 20 simulation replicates met $\Delta$log-likelihood criterion for statistical significance at the 0.05 level when generating $\alpha$ was equal to $\alpha = 8.0$: the lowest level of rate heterogeneity simulated (Figure 3B).
+
+## Power analysis
+
+To measure power in a statistical test for significant evidence of rate heterogeneity, we conducted the following simulation. First, we simulated 100 stochastic phylogenies under a Yule (pure-birth) model containing each of 50, 100, 200, 400, 800, and 1,600 species (600 simulations in total), and then rescaled each tree to have a total root to tip depth of 1.0. Next, on each tree we simulated a single discrete character with $\Gamma$-distributed rate heterogeneity among edges using an $\alpha$ shape parameter of $\alpha = 0.5$, along with the same three-state **Q** matrix as in our prior analysis (see above).
+
+For each simulated tree and data vector, we then proceeded to fit our variable-rate model using ML, specifying the known structure of the model, as before, but simultaneously estimating the instantaneous transition rate (*q*) and shape parameter of $\Gamma$, while setting the number of rate categories ($m$) to $m = 8$. In addition to fitting our $\Gamma$ rate heterogeneous model, for each tree and dataset we also fit a rate homogenous M*k* model, likewise fixing the model structure to its generating value. We then computed a P-value based on a likelihood-ratio test with one degree of freedom: the difference in the number of estimated parameters between our two models. As before, to help ensure convergence to the ML solution we invariably undertook a total of ten optimization iterations of both the $\Gamma$ and standard M*k* models, each with random starting values for $\alpha$ (if applicable) and the transition rate between states (*q*). Finally, we assumed a prior distribution at the root ($\pi$) following @FitzJohn2009.
+
+```{r, eval=FALSE, echo=FALSE}
+set.seed(88)
+library(foreach)
+library(parallel)
+library(doParallel)
+lr.test<-function(obj1,obj2){
+  l1<-logLik(obj1)
+  l2<-logLik(obj2)
+  LR<-2*(l2-l1)
+  as.numeric(
+    pchisq(LR,df=attr(l2,"df")-attr(l1,"df"),
+      lower.tail=FALSE))
+}
+niter<-10
+nrep<-100
+alpha<-0.5
+ntaxa<-c(50,100,200,400,800,1600)
+## set number of cores to use
+ncores<-min(c(parallel::detectCores()-2,
+  niter))
+## create parallel socket cluster
+mc<-makeCluster(ncores,type="PSOCK")
+registerDoParallel(cl=mc)
+powerRESULTS<-matrix(NA,nrep*length(ntaxa),5,
+  dimnames=list(1:(nrep*length(ntaxa)),
+    c("N","est.alpha","est.q","logL","P")))
+## generate Q matrix for simulation
+Q<-matrix(c(
+  -1,1,0,
+  1,-2,1,
+  0,1,-1),3,3,
+  dimnames=list(letters[1:3],letters[1:3]))
+## design matrix of model
+MODEL<-Q
+diag(MODEL)<-0
+for(i in 1:length(ntaxa)){
+  ## generate random tree(s)
+  trees<-pbtree(n=ntaxa[i],scale=1,nsim=nrep)
+  for(j in 1:nrep){
+    ## simulate data
+    rates<-rgamma(n=nrow(trees[[j]]$edge),alpha,alpha)
+    sim_tree<-trees[[j]]
+    sim_tree$edge.length<-trees[[j]]$edge.length*rates
+    x<-sim.Mk(sim_tree,Q)
+    x<-to.matrix(x,letters[1:ncol(Q)])
+    plotTree(sim_tree,ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
+    tmp<-bquote('N'==.(round(ntaxa[i]))~','~alpha==.(round(alpha,3)))
+    title(main=tmp)
+    fits<-foreach(k=1:niter)%dopar%{
+      result<-NA
+      class(result)<-"try-error"
+      while(inherits(result,"try-error")){
+        result<-try(phytools::fitgammaMk(trees[[j]],x,model=MODEL,
+          min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8))
+      }
+      result
+    }
+    logL<-sapply(fits,logLik)
+    best_fit<-fits[[which(logL==max(logL))[1]]]
+    fits<-foreach(k=1:niter)%dopar%{
+      result<-NA
+      class(result)<-"try-error"
+      while(inherits(result,"try-error")){
+        result<-try(phytools::fitMk(trees[[j]],x,model=MODEL,
+          pi="fitzjohn",rand_start=TRUE))
+      }
+      result
+    }
+    logL<-sapply(fits,logLik)
+    fit_null<-fits[[which(logL==max(logL))[1]]]
+    powerRESULTS[(i-1)*nrep+j,]<-
+      c(ntaxa[i],best_fit$alpha,best_fit$rates,
+        logLik(best_fit),lr.test(fit_null,best_fit))
+    if((((i-1)*nrep+j))>20) ii<-((i-1)*nrep+j)-19:0
+    else ii<-1:((i-1)*nrep+j)
+    print(round(powerRESULTS[ii,],5))
+    cat("\n")
+  }
+}
+stopCluster(cl=mc)
+save(powerRESULTS,file="data/powerRESULTS.rda")
+```
+```{r, echo=FALSE, fig.width=10, fig.height=6, dpi=300, out.width = "100%",fig.cap="Results from an analysis of simulated datasets generated with $\\Gamma$-distributed rate heterogeneity with $\\alpha = 0.5$ for phylogenies containing various numbers of taxa. (\\textbf{A}) The distribution of estimated values of $\\alpha$ for each tree size. As in Figure 3, the grey box gives the 25\\% to 75\\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers.(\\textbf{B}) Estimated power: the proportion of statistical test in which $\\Gamma$ rate heterogeneity was significant in a likelihood-ratio test with one degree of freedom, the difference in parameter complexity between the M\\emph{k} and $\\Gamma$ models."}
+load("data/powerRESULTS.rda")
+ntaxa<-c(50,100,200,400,800,1600)
+alpha<-0.5
+par(bty="n",mfrow=c(1,2),mar=c(5.1,4.1,2.1,1.1))
+boxplot(powerRESULTS[,"est.alpha"]~as.factor(powerRESULTS[,"N"]),log="y",
+  bty="n",xlab="number of taxa",
+  ylab=expression(paste("estimated value of ",alpha)),las=1,cex.axis=0.8,
+  xlim=c(-0.5,6.5),ylim=c(0.001,1000),axes=FALSE)
+abline(h=alpha,lty="dashed",col="blue")
+boxplot(powerRESULTS[,"est.alpha"]~as.factor(powerRESULTS[,"N"]),log="y",
+  add=TRUE,cex=1.2,pch=21,bg="grey",las=1,cex.axis=0.8,axes=FALSE)
+axis(1,at=1:6,labels=ntaxa,las=1,cex.axis=0.8)
+axis(2,at=10^(-3:3),labels=c(0.001,0.01,0.1,1.0,10.0,100,1000),
+  las=1,cex.axis=0.8)
+tmp<-bquote(alpha==.(round(alpha,3)))
+text(x=-0.7,y=1.4*alpha,tmp,pos=4,cex=0.8)
+legend("bottomright",expression(paste("generating value of ",alpha)),
+  lwd=1,col="blue",lty="dashed",bty="n",cex=0.8)
+mtext("A",line=0.5,adj=-0.1,font=2,cex=1.5)
+PP<-sapply(ntaxa,function(n,Y) Y[which(Y[,"N"]==n),"P"],
+  Y=powerRESULTS)
+power<-apply(PP,2,function(x) mean(x<=0.05))
+plot(1:6,power,type="b",pch=21,cex=1.2,bg="grey",
+  xlim=c(-0.5,6.5),ylim=c(0,1),las=1,cex.axis=0.8,
+  axes=FALSE,xlab="number of taxa",ylab="estimated power")
+axis(2,las=1,cex.axis=0.8)
+axis(1,at=1:6,labels=ntaxa,las=1,cex.axis=0.8)
+abline(h=0.05,lty="dashed",col="blue")
+text(x=-0.7,y=0.08,"P = 0.05",pos=4,cex=0.8)
+mtext("B",line=0.5,adj=-0.1,font=2,cex=1.5)
+```
+
+The results from our power analysis are shown in Figure 4. We found that the median estimated value of $\alpha$ tended to be centered relatively close to the generating value of $\alpha = 0.5$ across all simulation conditions (Figure 4A). The variance among simulations, however, was *very* high for relatively small trees: such as $N = 50$ and $N = 100$ (Figure 4A). Commensurate with this observation, we found that power to reject the null hypothesis of rate homogeneity tended to be barely above the nominal $\alpha$ (acceptable type I error) level of 0.05 for small trees, and only increased to around 80\% for simulated phylogenies containing as many as 1,600 tip taxa (Figure 4B).
+
+## Ancestral state reconstruction
+
+Lastly, we measured the accuracy of ancestral state estimation under the $\Gamma$ model of rate heterogeneity among edges. To do this, we first simulated two hundred 500 taxon pure-birth (Yule) phylogenetic trees, each scaled to a total depth of 1.0. As for prior sections, on each tree we simulated the evolution of a single, three-state discrete character evolving under the same stochastic process (with $\Gamma$ rate heterogeneity $\alpha = 0.5$) and value of **Q** as in our power analysis of the prior section, but in which we also recorded the simulated ancestral states for all internal nodes of the phylogeny. 
+
+Next, for each simulated tree and data vector we proceeded to fit our variable-rate model using ML, specifying the known structure of the model (as in our other simulation analyses), but simultaneously estimating the instantaneous transition rate (*q*) and $\alpha$ shape parameter of $\Gamma$. As before, we fixed the number of rate categories of our discrete $\Gamma$ distribution ($m$) to be $m = 8$. In addition to fitting our $\Gamma$ rate heterogeneous model, for each tree and dataset we also fit a rate homogenous M*k* model, likewise fixing the model structure to its generating value. As before, we undertook a total of ten optimization iterations of both the $\Gamma$ and standard M*k* models, each with random starting values for $\alpha$ (if applicable) and the transition rate between states (*q*), to help ensure convergence. As before, we assumed a @FitzJohn2009 root node prior distribution.
+
+For each fitted M*k* and $\Gamma$ model of each simulated tree and dataset, we undertook marginal ancestral state estimation following Pagel [-@Pagel1999; @Yang2006-kb]. Marginal ancestral state estimation involves traversing the tree by node, and at each node computing the probability of the data given each state of the character, conditioning on the tree and fitted character model, but integrating across all possible states at all other nodes of the tree. These node likelihoods are then normalized (scaled) to sum to 1.0, at which point they can be properly interpreted as the (empirical Bayes) posterior probabilities that each node is in each of the observed conditions of our character [@Yang2006-kb; @Yang2014-uo]. To measure the accuracy of our ancestral state reconstructions under both the standard M*k* and $\Gamma$ models, we simply computed the average, node-wise product of the known, simulated states (represented as vectors of 0s and 1s) and the marginal scaled likelihoods from our procedure of ancestral state estimation. This average product can range from 0 (if all nodes are estimated confidently but completely inaccurately) to 1 (reflecting high confidence in the correct ancestral conditions across all nodes). Intermediate measured accuracy comprises both the scenario of an intermediate portion of nodes inferred correctly with high confidence (and the remainder confidently wrongly), or equally low confidence across all nodes. Since here we're focused on identifying any difference in accuracy between M*k* and $\Gamma$ models that might arise for data generated under a $\Gamma$ model of rate heterogeneity, we're not too preoccupied in differentiating these latter possibilities. Lastly, we computed the difference in raw accuracy and divided it by the accuracy of the M*k* estimates to measure the proportional improvement in accuracy of the $\Gamma$ compared to M*k* model when the former was true. (A positive value of 0.05, for example, would indicate that measured accuracy was about 5\% better for the $\Gamma$ model than the M*k* model, whereas a value of -0.05 would suggest the converse.)
+
+```{r, echo=FALSE, eval=FALSE}
+## code for simulation
+set.seed(77)
+library(phytools)
+library(foreach)
+library(parallel)
+library(doParallel)
+niter<-10
+nrep<-10
+alpha<-0.5
+ntaxa<-400
+## set number of cores to use
+ncores<-min(c(parallel::detectCores()-2,
+  niter))
+## create parallel socket cluster
+mc<-makeCluster(ncores,type="PSOCK")
+registerDoParallel(cl=mc)
+asrRESULTS<-matrix(NA,nrep,8,
+  dimnames=list(1:nrep,
+    c("delta",
+    "gamma.accuracy","est.alpha","gamma.q","gamma.logL",
+      "mk.accuracy","mk.q","mk.logL")))
+## generate Q matrix for simulation
+Q<-matrix(c(
+  -1,1,0,
+  1,-2,1,
+  0,1,-1),3,3,
+  dimnames=list(letters[1:3],letters[1:3]))
+## design matrix of model
+MODEL<-Q
+diag(MODEL)<-0
+trees<-pbtree(n=ntaxa,nsim=nrep,scale=1)
+for(i in 1:nrep){
+  ## simulate data
+  rates<-rgamma(n=nrow(trees[[i]]$edge),alpha,alpha)
+  sim_tree<-trees[[i]]
+  sim_tree$edge.length<-trees[[i]]$edge.length*rates
+  x<-sim.Mk(sim_tree,Q,internal=TRUE)
+  anc<-x[1:sim_tree$Nnode+Ntip(sim_tree)]
+  x<-to.matrix(x[sim_tree$tip.label],letters[1:ncol(Q)])
+  plotTree(sim_tree,ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
+  tmp<-bquote('N'==.(round(ntaxa))~','~alpha==.(round(alpha,3)))
+  title(main=tmp)
+  fits<-foreach(j=1:niter)%dopar%{
+    result<-NA
+    class(result)<-"try-error"
+    while(inherits(result,"try-error")){
+      result<-try(phytools::fitgammaMk(trees[[i]],x,model=MODEL,
+        min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8))
+    }
+    result
+  }
+  logL<-sapply(fits,logLik)
+  gamma_fit<-fits[[which(logL==max(logL))[1]]]
+  fits<-foreach(j=1:niter)%dopar%{
+    result<-NA
+    class(result)<-"try-error"
+    while(inherits(result,"try-error")){
+      result<-try(phytools::fitMk(trees[[i]],x,model=MODEL,
+        pi="fitzjohn",rand_start=TRUE))
+    }
+    result
+  }
+  logL<-sapply(fits,logLik)
+  mk_fit<-fits[[which(logL==max(logL))[1]]]
+  gamma_ace<-ancr(gamma_fit)
+  mk_ace<-ancr(mk_fit)
+  AA<-to.matrix(anc,letters[1:ncol(Q)])
+  mk_accuracy<-1-(1/trees[[i]]$Nnode)*sum(
+    (AA-mk_ace$ace)[cbind(1:nrow(AA),apply(AA,1,
+      function(x) which(x==1)))])
+  gamma_accuracy<-1-(1/trees[[i]]$Nnode)*sum(
+    (AA-gamma_ace$ace)[cbind(1:nrow(AA),apply(AA,1,
+      function(x) which(x==1)))])
+  asrRESULTS[i,]<-c(gamma_accuracy-mk_accuracy,
+    gamma_accuracy,gamma_fit$alpha,gamma_fit$rates,
+    logLik(gamma_fit),mk_accuracy,mk_fit$rates,logLik(mk_fit))
+  if(i>20) ii<-i-19:0
+  else ii<-1:i
+  print(asrRESULTS[ii,,drop=FALSE])
+  cat("\n")
+}
+parallel::stopCluster(cl=mc)
+save(asrRESULTS,file="data/asrRESULTS.rda")
+```
+```{r, echo=FALSE, fig.width=6, fig.height=4, dpi=300, out.width = "100%", fig.cap="Normalized difference in accuracy of marginal ancestral state estimation under the M\\emph{k} and $\\Gamma$ model when the data were simulated under the $\\Gamma$ model. Raw accuracy was invariably higher for the generating model. See main text for more details."}
+## code for results
+load("data/asrRESULTS.rda")
+par(mar=c(5.1,4.1,2.1,2.1))
+plot(NA,xlim=c(-0.15,0.15),ylim=c(0,40),axes=FALSE,
+  ylab="",xlab="")
+grid()
+segments(0,0,0,par()$usr[4],lwd=2)
+prop_diff<-asrRESULTS[,"delta"]/asrRESULTS[,"mk.accuracy"]
+hist(prop_diff,breaks=seq(-0.15,0.15,by=0.01),main="",
+ las=1,cex.axis=0.8,ylim=c(0,40),add=TRUE)
+axis(1,cex.axis=0.8)
+axis(2,cex.axis=0.8,las=1)
+title(xlab=expression(paste(Delta," reconstruction accuracy")),
+   ylab="frequency")
+tmp<-bquote(Gamma ~ .("model more accurate") %->% "")
+text(x=0,y=40,tmp,pos=4,cex=0.8)
+tmp<-bquote("" %<-% "Mk model more accurate")
+text(x=0,y=40,tmp,pos=2,cex=0.8)
+```
+
+Figure 5 shows the distribution of scaled differences in accuracy between the $\Gamma$ and M*k* models in marginal ancestral state estimation from our 200 simulations. Invariably, estimates obtained using the $\Gamma$ model, which was the generating evolutionary scenario of the simulations, were more accurate than those obtained from the M*k* model (Figure 5), with a mean improvement in accuracy of about 5.3\%.
+
+## Empirical case study
+
+To explore the behavior of our method using empirical data we elected to analyze a dataset of forefoot and hindfoot digit number in squamate reptiles originally published by @Brandley2008. These data consist of a single estimated tree and observations of 0, 1, 2, ..., 5 digits in the fore and hindfeet of 257 species of squamates, plus the tuatara (*Sphenodon punctatus*). A very small number of species were reported in Brandley et al. (2008) as exhibiting polymorphism in digit number. Since the authors scored these taxa with a digit number tally equal to the *average* number of digits (and because they consist of relatively few species of the dataset), we simply rounded polymorphic taxa to the closest whole digit.
+
+In our recently published book [@Revell2022-book] we analyzed a subset of the @Brandley2008 data for hindfoot digit number only and discovered that directional (sequential loss) and ordered (sequential loss and gain) M*k* models had much better support (accounting for model parameter complexity) compared to other transition models between states. As such, here we've elected to focus on only this category of model.
+
+For each of the fore and hindfoot digit number traits, we fit a total of eight models: four M*k* models and four models with $\Gamma$-distributed rate heterogeneity among edges. These models were as follows (in each case, the number of parameters to be estimated is indicated in parentheses): a directional (loss-only) M*k* model with one rate of digit loss (1); a directional $\Gamma$ model with one rate of digit loss (2); an ordered (loss-and-gain) M*k* model with one rate of loss and a second rate of gain (2); an ordered $\Gamma$ model with one rate of loss and another rate of gain (3); a directional (loss-only) M*k* model with a different rate of loss for each character level (5); a directional $\Gamma$ model with a different rate of loss for each level (6); an ordered (loss-and-gain) M*k* model with different rates of loss and gain for each character level (10); finally, an ordered $\Gamma$ model with different rates of loss and gain for each level (11). As in our simulations, above, we used a @FitzJohn2009 root prior, ran ten optimization iterations per model with random starting values, and set the number of rate categories of the discretized $\Gamma$ distribution to $m = 8$. For the best-fitting $\Gamma$ model for each trait, we also computed the marginal edge rates and scaled likelihoods (marginal ancestral states) at all nodes of the tree.
+
+```{r, echo=FALSE, results="hide", message=FALSE}
+## load packages
+library(phytools)
+library(geiger)
+library(foreach)
+library(parallel)
+library(doParallel)
+## read data from file
+squamate.data<-read.csv(file="data/brandley_table.csv",row.names=1)
+rownames(squamate.data)<-gsub(" ","_",rownames(squamate.data))
+squamate.tree<-read.nexus(file="data/squamate.tre")
+name.check(squamate.tree,squamate.data)
+## fore- and hind-digits
+fdigits<-setNames(as.factor(round(squamate.data$Fingers)),
+  rownames(squamate.data))
+fdigits<-fdigits[squamate.tree$tip.label]
+hdigits<-setNames(as.factor(round(squamate.data$Toes)),
+  rownames(squamate.data))
+hdigits<-hdigits[squamate.tree$tip.label]
+```
+```{r, eval=FALSE, echo=FALSE}
+## set number of cores to use
+niter<-10
+ncores<-min(c(parallel::detectCores()-2,
+  niter))
+## create parallel socket cluster
+mc<-makeCluster(ncores,type="PSOCK")
+registerDoParallel(cl=mc)
+## fit models (fore-digits)
+## ordered two-rate model
+ordered1<-matrix(c(
+  0,1,0,0,0,0,
+  2,0,1,0,0,0,
+  0,2,0,1,0,0,
+  0,0,2,0,1,0,
+  0,0,0,2,0,1,
+  0,0,0,0,2,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,fdigits,
+    model=ordered1,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_ordered1<-fits[[which(logL==max(logL)[1])]]
+plot(mk_ordered1,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,fdigits,
+    model=ordered1,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_ordered1<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_ordered1),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## ordered ten-rate model
+ordered2<-matrix(c(
+  0,1,0,0,0,0,
+  2,0,3,0,0,0,
+  0,4,0,5,0,0,
+  0,0,6,0,7,0,
+  0,0,0,8,0,9,
+  0,0,0,0,10,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,fdigits,
+    model=ordered2,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_ordered2<-fits[[which(logL==max(logL))[1]]]
+plot(mk_ordered2,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,fdigits,
+    model=ordered2,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_ordered2<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_ordered2),width=TRUE,color=TRUE)
+## directional one-rate model
+directional1<-matrix(c(
+  0,0,0,0,0,0,
+  1,0,0,0,0,0,
+  0,1,0,0,0,0,
+  0,0,1,0,0,0,
+  0,0,0,1,0,0,
+  0,0,0,0,1,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,fdigits,
+    model=directional1,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_directional1<-fits[[which(logL==max(logL)[1])]]
+plot(mk_directional1,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,fdigits,
+    model=directional1,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_directional1<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_directional1),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## direction five-rate model
+directional2<-matrix(c(
+  0,0,0,0,0,0,
+  1,0,0,0,0,0,
+  0,2,0,0,0,0,
+  0,0,3,0,0,0,
+  0,0,0,4,0,0,
+  0,0,0,0,5,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,fdigits,
+    model=directional2,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_directional2<-fits[[which(logL==max(logL)[1])]]
+plot(mk_directional2,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,fdigits,
+    model=directional2,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_directional2<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_directional2),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+stopCluster(cl=mc)
+marginal.gamma_ordered2<-fitgammaMk(squamate.tree,
+  fdigits,fixedQ=as.Qmatrix(gamma_ordered2),
+  alpha.init=gamma_ordered2$alpha,
+  pi="fitzjohn",marginal=TRUE)
+```
+```{r, eval=FALSE, echo=FALSE}
+## set number of cores to use
+niter<-10
+ncores<-min(c(parallel::detectCores()-2,
+  niter))
+## create parallel socket cluster
+mc<-makeCluster(ncores,type="PSOCK")
+registerDoParallel(cl=mc)
+
+## fit models (hind-digits)
+## ordered two-rate model
+ordered1<-matrix(c(
+  0,1,0,0,0,0,
+  2,0,1,0,0,0,
+  0,2,0,1,0,0,
+  0,0,2,0,1,0,
+  0,0,0,2,0,1,
+  0,0,0,0,2,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,hdigits,
+    model=ordered1,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_ordered1.h<-fits[[which(logL==max(logL))[1]]]
+plot(mk_ordered1.h,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,hdigits,
+    model=ordered1,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_ordered1.h<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_ordered1.h),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## ordered ten-rate model
+ordered2<-matrix(c(
+  0,1,0,0,0,0,
+  2,0,3,0,0,0,
+  0,4,0,5,0,0,
+  0,0,6,0,7,0,
+  0,0,0,8,0,9,
+  0,0,0,0,10,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,hdigits,
+    model=ordered2,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_ordered2.h<-fits[[which(logL==max(logL))[1]]]
+plot(mk_ordered2.h,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,hdigits,
+    model=ordered2,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_ordered2.h<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_ordered2.h),width=TRUE,color=TRUE)
+## directional one-rate model
+directional1<-matrix(c(
+  0,0,0,0,0,0,
+  1,0,0,0,0,0,
+  0,1,0,0,0,0,
+  0,0,1,0,0,0,
+  0,0,0,1,0,0,
+  0,0,0,0,1,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,hdigits,
+    model=directional1,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_directional1.h<-fits[[which(logL==max(logL))[1]]]
+plot(mk_directional1.h,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,hdigits,
+    model=directional1,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_directional1.h<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_directional1.h),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## direction five-rate model
+directional2<-matrix(c(
+  0,0,0,0,0,0,
+  1,0,0,0,0,0,
+  0,2,0,0,0,0,
+  0,0,3,0,0,0,
+  0,0,0,4,0,0,
+  0,0,0,0,5,0),6,6,byrow=TRUE)
+## standard Mk
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitMk(squamate.tree,hdigits,
+    model=directional2,lik.func="pruning",pi="fitzjohn",
+    logscale=TRUE,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+mk_directional2.h<-fits[[which(logL==max(logL)[1])]]
+plot(mk_directional2.h,width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+## gamma model
+fits<-foreach(i=1:niter)%dopar%{
+  phytools::fitgammaMk(squamate.tree,hdigits,
+    model=directional2,pi="fitzjohn",min.alpha=0.001,
+    logscale=TRUE,nrates=8,rand_start=TRUE)
+}
+logL<-sapply(fits,logLik)
+logL
+gamma_directional2.h<-fits[[which(logL==max(logL))[1]]]
+plot(as.Qmatrix(gamma_directional2.h),width=TRUE,color=TRUE,
+  mar=rep(0.1,4),offset=0.025)
+stopCluster(cl=mc)
+marginal.gamma_ordered2.h<-fitgammaMk(squamate.tree,
+  fdigits,fixedQ=as.Qmatrix(gamma_ordered2.h),
+  alpha.init=gamma_ordered2.h$alpha,
+  pi="fitzjohn",marginal=TRUE)
+save(mk_directional1.h,gamma_directional1.h,
+  mk_ordered1.h,gamma_ordered1.h,
+  mk_directional2.h,gamma_directional2.h,
+  mk_ordered2.h,gamma_ordered2.h,
+  marginal.gamma_ordered2.h,
+  file="data/squamate-hdigit-models.rda")
+```
+```{r, echo=FALSE, results="hide", message=FALSE}
+load("data/squamate-fdigit-models.rda")
+load("data/squamate-hdigit-models.rda")
+aov_table<-anova(mk_directional1,gamma_directional1,
+  mk_ordered1,gamma_ordered1,
+  mk_directional2,gamma_directional2,
+  mk_ordered2,gamma_ordered2)
+est.alpha<-c(NA,gamma_directional1$alpha,
+  NA,gamma_ordered1$alpha,
+  NA,gamma_directional2$alpha,
+  NA,gamma_ordered2$alpha)
+aov_table<-cbind(aov_table[,1],est.alpha,aov_table[,2:4])
+```
+```{r, echo=FALSE, results='hide'}
+range(c(diff(aov_table$AIC[2:1]),diff(aov_table$AIC[4:3]),
+  diff(aov_table$AIC[6:5]),diff(aov_table$AIC[8:7])))
+```
+
+Table 1 shows a summary of the model fits, estimated value of $\alpha$ (if applicable), model parameter complexity, and model support for each of the eight trait evolution models we fit to forefoot digit number. In comparing between each *pair* of otherwise equivalent models with and without $\Gamma$ rate heterogeneity among edges, information theoretic model support (measured via AIC) was consistently superior for the rate heterogeneous model ($12.0 \le \Delta AIC \le 379.9$ across all model pairs; Table 1). ML estimated values of $\alpha$ across all models were invariably low ($0.047 \le \alpha \le 0.104$), indicating relatively *high* rate heterogeneity among edges in the best-fitting $\Gamma$ models. The best-supported model overall was unambiguously the ordered, multi-rate, $\Gamma$ rate heterogeneous model (Table 1). Consequently, we used this model to estimate marginal edge rates of the character and scaled likelihoods (ancestral states) at all internal nodes of the phylogeny. This reconstruction is illustrated in Figure 6A.
+
+```{r, echo=FALSE, results='asis'}
+options(knitr.kable.NA = '--')
+colnames(aov_table)<-c("log(L)",
+  "estimated $\\alpha$",
+  "d.f.","AIC","weight")
+rownames(aov_table)<-c("directional one-rate M\\emph{k}",
+  "directional one-rate $\\Gamma$",
+  "ordered two-rate M\\emph{k}",
+  "ordered two-rate $\\Gamma$",
+  "directional five-rate M\\emph{k}",
+  "directional five-rate $\\Gamma$",
+  "ordered ten-rate M\\emph{k}",
+  "ordered ten-rate $\\Gamma$")
+knitr::kable(aov_table,digits=5,escape=FALSE,caption="Log-likelihood, estimated value of $\\alpha$ (if applicable), number of parameters, AIC, and model weights for five different discrete character evolution models of forefoot digit number in squamate reptiles, with and without $\\Gamma$ rate heterogeneity among edges. See main text for more details.")
+```
+```{r, echo=FALSE, fig.width=7, fig.height=7.2, dpi=300, out.width = "100%",fig.cap="Phylogeny of squamate reptiles from Brandley et al. (2008) showing the number of digits in the forefoot (\\textbf{A}) or hindfoot (\\textbf{B}) of each species, estimated ancestral states under an ordered $\\Gamma$ model, and estimated edge rates. Larger pie charts were used for all nodes in which no state had a marginal scaled likelihood $> 0.95$. See main text for more details."}
+lay_mat<-matrix(c(1,2,3,3),2,2,byrow=TRUE)
+layout(lay_mat,heights=c(0.97,0.03))
+## panel A
+ace.gamma_ordered2<-ancr(gamma_ordered2)
+cols<-setNames(
+  viridisLite::viridis(n=ncol(ace.gamma_ordered2$ace)),
+  colnames(ace.gamma_ordered2$ace))
+plot(marginal.gamma_ordered2,
+  colors=c("black","navy","blue","lightblue","ivory2"),
+  ftype="i",offset=0.4,lwd=1,fsize=0.2,
+  mar=c(0.1,0.1,1.1,0.1),ylim=c(1,Ntip(squamate.tree)))
+mtext("A",line=-0.5,adj=0.1,font=2)
+pp<-get("last_plot.phylo",envir=.PlotPhyloEnv)
+for(i in 1:Ntip(squamate.tree)){
+  polygon(x=pp$xx[i]+c(0,3,3,0),
+    y=pp$yy[i]+c(-0.5,-0.5,0.5,0.5),
+    col=cols[as.numeric(fdigits[i])],border=FALSE)
+}
+pie_cex<-apply(ace.gamma_ordered2$ace,1,
+  function(x) if(any(x>0.95)) 0.4 else 0.8)
+par(fg="transparent")
+nodelabels(pie=ace.gamma_ordered2$ace,piecol=cols,
+  cex=pie_cex)
+par(fg="black")
+## panel B
+ace.gamma_ordered2.h<-ancr(gamma_ordered2.h)
+cols<-setNames(
+  viridisLite::viridis(n=ncol(ace.gamma_ordered2.h$ace)),
+  colnames(ace.gamma_ordered2.h$ace))
+plot(marginal.gamma_ordered2.h,
+  colors=c("black","navy","blue","lightblue","ivory2"),
+  ftype="i",offset=0.4,lwd=1,fsize=0.2,
+  mar=c(0.1,0.1,1.1,0.1),ylim=c(1,Ntip(squamate.tree)))
+mtext("B",line=-0.5,adj=0.1,font=2)
+pp<-get("last_plot.phylo",envir=.PlotPhyloEnv)
+for(i in 1:Ntip(squamate.tree)){
+  polygon(x=pp$xx[i]+c(0,3,3,0),
+    y=pp$yy[i]+c(-0.5,-0.5,0.5,0.5),
+    col=cols[as.numeric(hdigits[i])],border=FALSE)
+}
+pie_cex<-apply(ace.gamma_ordered2.h$ace,1,
+  function(x) if(any(x>0.95)) 0.4 else 0.8)
+par(fg="transparent")
+nodelabels(pie=ace.gamma_ordered2.h$ace,piecol=cols,
+  cex=pie_cex)
+par(fg="black")
+par(mar=rep(0,4))
+plot(NA,xlim=c(-1,1),ylim=c(-1,1),
+  axes=FALSE,ylab="",xlab="")
+legend(x=0,y=2,
+  colnames(ace.gamma_ordered2$ace),cex=1.2,
+  pch=16,pt.cex=2,col=cols,horiz=TRUE,
+  bty="n",xjust=0.5,yjust=1)
+```
+
+```{r, echo=FALSE, results="hide", message=FALSE}
+aov_table.h<-
+  anova(mk_directional1.h,gamma_directional1.h,
+  mk_ordered1.h,gamma_ordered1.h,
+  mk_directional2.h,gamma_directional2.h,
+  mk_ordered2.h,gamma_ordered2.h)
+est.alpha<-c(NA,gamma_directional1.h$alpha,
+  NA,gamma_ordered1.h$alpha,
+  NA,gamma_directional2.h$alpha,
+  NA,gamma_ordered2.h$alpha)
+aov_table.h<-cbind(aov_table.h[,1],est.alpha,aov_table.h[,2:4])
+```
+```{r, echo=FALSE, results='hide'}
+range(c(diff(aov_table.h$AIC[2:1]),diff(aov_table.h$AIC[4:3]),
+  diff(aov_table.h$AIC[6:5]),diff(aov_table.h$AIC[8:7])))
+```
+
+Table 2 shows a summary of the model fits, parameter complexity, and model support for each of the eight trait evolution models we fit to hindfoot digit number. Much as we found for forefoot digit number, comparing between each pair of models with and without $\Gamma$ rate heterogeneity among edges, model support was consistently higher for the $\Gamma$ model ($14.2 \le \Delta AIC \le 293.3$ across all model pairs; Table 2). As for forefoot digit number, rate heterogeneity in the best-fitting $\Gamma$ models was substantial (all $0.033 \le \alpha \le 0.266$). The best-supported model overall was the ordered, multi-rate, $\Gamma$ rate heterogeneous model, with an Akaike weight of around 0.84. The second best-supported model was the directional, multi-rate, $\Gamma$ model (Table 2). We used the best-supported ordered model to estimate marginal edge rates of the character and scaled likelihoods (ancestral states) at all internal nodes of the tree. This reconstruction is illustrated in Figure 6B.
+
+```{r, echo=FALSE, results='asis'}
+options(knitr.kable.NA = '--')
+colnames(aov_table.h)<-c("log(L)",
+  "estimated $\\alpha$",
+  "d.f.","AIC","weight")
+rownames(aov_table.h)<-c("directional one-rate M\\emph{k}",
+  "directional one-rate $\\Gamma$",
+  "ordered two-rate M\\emph{k}",
+  "ordered two-rate $\\Gamma$",
+  "directional five-rate M\\emph{k}",
+  "directional five-rate $\\Gamma$",
+  "ordered ten-rate M\\emph{k}",
+  "ordered ten-rate $\\Gamma$")
+knitr::kable(aov_table.h,digits=5,escape=FALSE,caption="Log-likelihood, estimated value of $\\alpha$ (if applicable), number of parameters, AIC, and model weights for five different discrete character evolution models of hindfoot digit number in squamate reptiles, with and without $\\Gamma$ rate heterogeneity among edges. See main text for more details.")
+```
+
+Biologically, these results tell us that there is strong evidence for rate heterogeneity in digit gain and loss across squamate reptiles. Some transitions occur more rapidly than others -- which we already knew from previous analyses. This analysis gives us the additional information that particular lineages have highly elevated transition rates compared to others. There remains ambiguity as to whether digits are both gained and lost (the ordered model) or only lost (the directional model): though the former is clearly better supported for forefoot (Table 1) than in hindfoot digits (Table 2).
+
+# Software
+
+The model of this article is implemented in the function `fitgammaMk` of the *phytools* [@Revell2012; @Revell2024] R package. All analyses of this study were undertaken in R [@RCoreTeam2023] using *phytools*. *phytools*, in turn, depends heavily on the object classes and methods of the core R phylogenetics package, *ape* [@Paradis2004-xk; @Popescu2012-ui; @Paradis2019-zp]. At the time of writing, *phytools* also depended on or imported from a number of other R packages including *clusterGeneration* [@Qiu2020], *coda* [@Plummer2006], *combinat* [@Chasalow2012], *doParallel* [@Microsoft2022-a], *expm* [@Maechler2023], *foreach* [@Microsoft2022-b], *maps* [@Becker2022], *MASS* [@Venables2002], *mnormt* [@Azzalini2022], *nlme* [@Pinheiro2022; @Pinheiro2000], *numDeriv* [@Gilbert2019], *optimParallel* [@Gerber2019], *phangorn* [@Schliep2011-my], *plotrix* [@Lemon2006], and *scatterplot3d* [@Ligges2003]. The *geiger* [@Harmon2008-id; @Pennell2014-mo] and *viridisLite* [@Garnier2023] packages were also used for some analyses and visualizations of this study.
+
+# Discussion
+
+Over the past several decades, phylogenies have become pervasive in many disciplines of the biological sciences and beyond. For example, phylogenies are now employed extensively in biomedical research, in infectious disease epidemiology, in genomics, and in anthropology, among other fields [e.g., @Mace2005; @Singh2009; @Colijn2014; @Brown2017; @Somarelli2017]. Increasingly, phylogeneticists combine the estimated tree (typically obtained from aligned nucleotide or amino acid sequences) with phenotypic trait data in an effort to learn something about how the features and attributes of living organisms have evolved over time [@OMeara2012; @Harmon2019-on; @Revell2022-book]. For trait data that is discretely-valued, such as the presence or absence of a physical feature or a categorical behavioral trait, the typical model used to approximate character evolution on a phylogeny is one that's been called the M*k* model [@Pagel1999; @Lewis2001; @Revell2022-book; @Revell2024]. The M*k* model describes a continuous-time Markov chain with *k* states, and we normally assume that this process is constant over all the branches and nodes of our reconstructed tree [but see @Marazzi2012; @Beaulieu2013-zo].
+
+In the present article we introduce a totally new model in which we assume that the edge-wise rate of trait evolution is distributed as a random variable drawn from a $\Gamma$ distribution, similar to the $\Gamma$-distributed rate heterogeneity among sites model often employed in molecular phylogenetic tree inference methods [e.g., @Yang1994; @Felsenstein2004-ab]. The $\Gamma$ distribution is a flexible two parameter distribution which has a general form determined by the parameter $\alpha$. When the second parameter of the $\Gamma$ distribution, $\beta$, is set to $\beta = \alpha$, then the mean of the distribution is 1.0 and the variance decreases monotonically with increasing $\alpha$. Indeed, as $\alpha \rightarrow \infty$ (but in practice for $\alpha << \infty$), our $\Gamma$ model converges on a homogeneous rate M*k*. Conversely, as $\alpha \rightarrow \frac{1}\infty$ (but in practice for $\alpha >> \frac{1}\infty$) the $\Gamma$ model of this paper converges on a two-rate process in which some branches evolve with a very high rate, and most not at all. There is substantial biological justification for considering models that allow rates to vary across branches in a phylogenetic tree.
+
+When the generating process is $\Gamma$-distributed rates among edges, we found that it was possible to estimate $\alpha$ reasonably well -- particularly if $\alpha$ was low and especially for larger trees (Figures 3, 4). On the other hand, we found that the variance in estimated $\alpha$ increased substantially for larger values of $\alpha$ (i.e., low rate heterogeneity) and for phylogenies with fewer tips (Figures 3, 4). We also found that the method had modest power to reject the null hypothesis of constant rates. In particular, even for relatively high rate heterogeneity ($\alpha = 0.5$) power was only around 50\% for $N = 800$. We found that taking into account rate heterogeneity when present had a highly significant impact on ancestral state estimation (Figure 5). In general, estimated ancestral states obtained for data simulated under $\Gamma$-distributed rate heterogeneity among edges were measurably more reliable when this rate heterogeneity was taken into account in the fitted model (Tables 1, 2, Figure 6).
+
+Lastly, we analyzed a dataset of fore and rearfoot digit number in 257 species of squamate reptiles (plus the tuatara, *Sphenodon punctatus*) using a phylogeny and dataset from @Brandley2008. We found significant evidence for rate heterogeneity in digit number evolution, with all $\Gamma$ models fitting substantively better than their rate homogeneous counterparts.
+
+In conclusion, we believe that the analyses we illustrate in this article can be an important addition to the growing toolbox of methodologies for studying character evolution on trees. We hope that its statistical properties, use cases, and limitations will be examined further in future research.
+
+# Data availability
+
+
+
+# Acknowledgments
+
+This article had no direct contributors beyond the authors; however, we appreciate M. Brandley for sharing the data from his 2008 study which we have used in many workshops, as well as herein for our empirical case study.
+
+# Funding
+
+This research was funded by grants from the National Science Foundation (DBI‐1759940) and FONDECYT, Chile (1201869), to Liam J. Revell. The funders had no role in study design, data collection and analysis, decision to publish, or preparation of the manuscript.
+
+# Literature Cited
