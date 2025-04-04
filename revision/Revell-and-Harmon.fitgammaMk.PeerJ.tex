@@ -1,0 +1,545 @@
+%% Submissions for peer-review must enable line-numbering
+%% using the lineno option in the \documentclass command.
+%%
+%% Preprints and camera-ready submissions do not need
+%% line numbers, and should have this option removed.
+%%
+%% Please note that the line numbering option requires
+%% version 1.1 or newer of the wlpeerj.cls file, and
+%% the corresponding author info requires v1.2
+
+\documentclass[fleqn,10pt,lineno]{wlpeerj} % for journal submissions
+
+% ZNK -- Adding headers for pandoc
+
+\setlength{\emergencystretch}{3em}
+\usepackage[unicode=true]{hyperref}
+
+
+% tightlist command for lists without linebreak
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% From pandoc table feature
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+
+% Pandoc citation processing
+%From Pandoc 3.1.8
+% definitions for citeproc citations
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{%
+  \begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+ % allow citations to break across lines
+ \let\@cite@ofmt\@firstofone
+ % avoid brackets around text for \cite:
+ \def\@biblabel#1{}
+ \def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2] % #1 hanging-indent, #2 entry-spacing
+ {\begin{list}{}{%
+  \setlength{\itemindent}{0pt}
+  \setlength{\leftmargin}{0pt}
+  \setlength{\parsep}{0pt}
+  % turn on hanging indent if param 1 is 1
+  \ifodd #1
+   \setlength{\leftmargin}{\cslhangindent}
+   \setlength{\itemindent}{-1\cslhangindent}
+  \fi
+  % set entry spacing
+  \setlength{\itemsep}{#2\baselineskip}}}
+ {\end{list}}
+\usepackage{calc}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead[L]{Revell and Harmon (2024)}
+\fancyhead[C]{}
+\fancyhead[R]{Rate heterogeneity}
+\usepackage[singlelinecheck=false]{caption}
+\usepackage{amsmath,mathtools,bm}
+
+
+\title{A discrete character evolution model for phylogenetic comparative biology with \(\Gamma\)-distributed rate heterogeneity among branches of the tree}
+
+\author[1, 2]{Liam J. Revell}
+
+\corrauthor[1, 2]{Liam J. Revell}{\href{mailto:liam.revell@umb.edu}{\nolinkurl{liam.revell@umb.edu}}}
+\author[3]{Luke J. Harmon}
+
+
+\affil[1]{Department of Biology, University of Massachusetts Boston, Boston, MA, USA}
+\affil[2]{Facultad de Ciencias, Universidad Católica de la Santísima Concepción, Concepción, Chile}
+\affil[3]{Department of Biological Sciences, Institute for Bioinformatics and Evolutionary Studies (IBEST), University of Idaho, Moscow, ID, USA}
+
+
+%
+% \author[1]{First Author}
+% \author[2]{Second Author}
+% \affil[1]{Address of first author}
+% \affil[2]{Address of second author}
+% \corrauthor[1]{First Author}{f.author@email.com}
+
+% 
+
+\begin{abstract}
+Phylogenetic comparative methods are now widely used to measure trait evolution on the tree of life. Often these methods involve fitting an explicit model of character evolution to trait data and then comparing the explanatory power of this model to alternative scenarios. In this article, we present a new model for discrete trait evolution in which the rate of character change in the tree varies from edge (i.e., ``branch'') to edge of the phylogeny according to a discretized \(\Gamma\) distribution. When the edge-wise rates of evolution are, in fact, \(\Gamma\)-distributed, we show via simulation that this model can be used to reliably estimate the shape parameter (\(\alpha\)) of the distribution of rate variation among edges. We also describe how our model can be employed in ancestral state reconstruction, and demonstrate via simulation how doing so will tend to increase the accuracy of our estimated states when the generating edge rates are \(\Gamma\)-distributed. We discuss how marginal edge rates are estimated under the model, and apply our method to a real dataset of digit number in squamate reptiles, modified from Brandley et al.~(2008).
+% Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text. Dummy abstract text.
+\end{abstract}
+
+\begin{document}
+
+
+
+\flushbottom
+\maketitle
+\thispagestyle{empty}
+
+\section{Introduction}\label{introduction}
+
+A common endeavor in phylogenetic comparative analysis combines an estimated phylogeny with species trait data in an effort to better understand the evolution and history of our study clade (Harmon 2019; Revell and Harmon 2022). So doing frequently requires that we specify an explicit mathematical model that postulates how our traits, such as body size, limb lengths, the presence or absence of some feature, or a category of habitat specialization, may have evolved on the tree over macroevolutionary time (Pagel 1994; Butler and King 2004; O'Meara et al. 2006; O'Meara 2012; Beaulieu et al. 2013; Harmon 2019). This model might take a variety of flavors, all with its own parameters and attributes. In this case, our analysis may simply involve fitting a set of such models, each capturing a slightly different scenario of trait evolution, to learn which of them best explains the data that we have in our possession (e.g., Revell et al. 2022). Once we've identified a suitable trait evolution model, we might use it to estimate model parameters or reconstruct ancestral states (Harmon 2019; Revell et al. 2022; Revell 2024).
+
+When our trait data are discretely-valued (that is, the character only manifests in one of a limited set of conditions), the predominant model employed by comparative biologists to approximate its evolution on the tree is one that's popularly referred to as the M\emph{k} model (Pagel 1999; Lewis 2001; Harmon 2019; Revell and Harmon 2022). This model is so named because the underlying stochastic process it postulates is a memoryless Markov chain (the `M'), with a \emph{k}-dimensional state space (Lewis 2001). What we refer to here as the `state space' is just the number of unique conditions that the Markov chain can assume: two, for example, if our character can take on two different levels; three, if it might exist in three values; etc. Though originally conceived as a model with equal back-and-forth rates of transition between the two, three, or more conditions in the space (Lewis 2001), the M\emph{k} model has now been elaborated to permit an arbitrary number of different rates of character transition between levels (described in Harmon 2019; Revell and Harmon 2022). Fitting such a model could involve estimating up to \(k \times (k-1)\) parameters for \emph{k} states (all non-diagonal elements of a \(k \times k\) state transition matrix, typically called the \textbf{Q} matrix).
+
+Many of our comparative methods for analyzing trait change assume a uniform tempo of evolutionary change across all the branches and nodes of the tree (Harmon 2019). This is despite the fact that empirical results strongly suggest that the rate of change in phenotypic traits can vary widely across lineages and through time (e.g., Mahler et al. 2010; Beaulieu et al. 2013; Sander et al. 2021). Even if we are not interested in rate heterogeneity as such, to the extent that we are using a fitted trait model for other inferences, such as ancestral state reconstruction, we should worry that rate heterogeneity can lead us astray. For example, consider the situation where a trait changes only rarely, even over deep time -- but also exhibits rapid change within certain young clades, perhaps for some particular ecological or developmental reason. Imagine that a scientist studying this trait is interested in ancestral character conditions in the clade and fits a homogeneous rate model: since this is (by far) the most common assumption of ancestral character evolution. A homogeneous model with a low rate of change between states will do a poor job explaining rapid evolution of the trait where it occurred, even if it could do a good job explaining our data across the rest of our phylogenetic tree. As a consequence, our fitted model will have a high overall evolutionary rate which, when applied across the tree, greatly increases uncertainty of all ancestral states throughout the phylogenetic history of our group.
+
+The M\emph{k} model has already been extended in a number of interesting ways to permit rate heterogeneity over time, among clades, or as a function of another trait that has been mapped along the nodes and edges of the phylogeny. For instance, Pagel (1994) described a clever manner in which an M\emph{k}-type model can be used to approximate the interdependent evolution of two different binary traits, in which the condition of character one influence the transition rates of character two and/or vice versa (also see Boyko and Beaulieu 2022). Later, Marazzi et al. (2012) and Beaulieu et al. (2013) proposed a different model (called the precursor or hidden-rates model, depending on the way in which it's parameterized) whereby one or multiple unobserved conditions can influence our trait's transition rate to other observed values (also see Boyko and Beaulieu 2021; Revell and Harmon 2022). Revell and Harmon (2022) described a polymorphic trait evolution model in which the polymorphic condition (e.g., \(a + b\)) is postulated to be evolutionarily intermediate between corresponding monomorphic states (\(a\) and \(b\), in this case). Revell et al. (2021) defined a model in which the rate of evolution of a discrete character is influenced by an explicit, \emph{a priori} hypothesis of rate heterogeneity that's been painted onto the edges and nodes of the phylogeny by the investigator. Finally, various relaxed molecular clock models have been described in the literature (e.g., Thorne et al. 1998; Huelsenbeck et al. 2000; Yoder and Yang 2000; Drummond and Suchard 2010), and these models are sometimes used to study variable-rate phenotypic trait evolution on trees (e.g., King and Lee 2015).
+
+In the present article, we'll describe an extension of the M\emph{k} model in which the edge-wise rates of evolution of our trait are sampled randomly from a (normalized) \(\Gamma\) distribution with shape parameter \(\alpha\). This model is in many ways analogous to the popular \(\Gamma\) rate heterogeneity model for molecular sequence evolution that's commonly used for phylogeny estimation (e.g., Yang 1994; Felsenstein 2004). In our case, however, we'll be assuming that that rate of evolution for a single discrete trait changes from edge to edge according to an uncorrelated \(\Gamma\) (rather than varying by nucleotide site). A very closely-related model is described in Wu et al. (2008); however, this proposal was made in the context of modeling molecular sequence evolution for phylogeny and divergence time estimation, and to our knowledge the method of Wu et al. (2008) has not been applied to study phenotypic evolution on a fixed tree. This article is intended to provide a description of our method, which has already been implemented in the popular R package \emph{phytools} (Revell 2012; Revell 2024), a preliminary exploration of its statistical properties, and an empirical example based on the evolution of digit number in squamate reptiles using data adapted from Brandley et al. (2008).
+
+\section{Model, Methods, and Results}\label{model-methods-and-results}
+
+\subsection{The model}\label{the-model}
+
+This article describes a new discrete phenotypic trait evolution model in which the relative rates of character evolution varies from edge to edge according to an uncorrelated \(\Gamma\) distribution with shape parameter \(\alpha\) and mean of 1.0. (A mean of 1.0 is obtained by setting the second parameter of the \(\Gamma\) distribution, \(\beta\), to \(\beta = \alpha\).) Note that, much as it is for models of molecular sequence evolution, this assumption does not constrain the average rate of character change, nor the relative rates of state changes of different types -- both of which are given by the transition matrix of the process, \textbf{Q}.
+
+The \(\Gamma\) distribution is a flexible probability distribution that takes a shape resembling that of an exponential function for low values of \(\alpha\) (e.g., \(\alpha \le 1.0\)), and an increasingly bell-like conformation for larger and larger values of \(\alpha\) (e.g., \(\alpha \ge 4\)). Figure 1A shows a set of \(\Gamma\) distributions for various values of \(\alpha\).
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig1-1} \caption{(\textbf{A}) A set of $\Gamma$ probability distribution with different values of the shape parameter, $\alpha$. By setting $\beta = \alpha$ the mean of each distribution is equal to 1.0, while $\alpha$ determines the shape of the distribution in which $\alpha < 1$ correspond to distributions with high among edge rate heterogeneity. (\textbf{B}) An example phylogeny with two taxa (\emph{A} and \emph{B}) and two trait values of a discrete character (0 and 1). See main text for more details.}\label{fig:Revell-and-Harmon-fig1}
+\end{figure}
+
+Under a standard M\emph{k} model, the rates of transition between character levels are dictated entirely by a \(k \times k\) matrix \textbf{Q} in which each element, \(q_{i,j}\) (for all \(i \neq j\)), gives the instantaneous transition rate from condition \emph{i} to condition \emph{j}, and the diagonal is equal to the negative row sum (Revell and Harmon 2022). For a binary trait (i.e., \(k = 2\)), this transition matrix (\textbf{Q}) would appear as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+\mathbf{Q} = \begin{bmatrix} -q_{0,1} & q_{0,1} \\ q_{1,0} & -q_{1,0} \end{bmatrix}
+\end{aligned}
+\end{equation}
+
+To compute the probability of character change under a standard M\emph{k} model, given \textbf{Q} and any arbitrary elapsed time, \emph{t}, we simply calculate \(\mathbf{P} = \exp(\mathbf{Q} \times t)\), in which \(\exp(\mathbf{X})\) indicates the matrix exponential of \textbf{X}. This operation gives us a new \(k \times k\) matrix, \textbf{P}, in which \(p_{i,j}\) is equal to the probability of beginning the time interval, \emph{t}, in condition \emph{i} and ending in condition \emph{j} under our modeled process.
+
+To see how we then go about calculating the probability of a set of data at the tips of the tree for any particular value of \textbf{Q}, we can begin by considering the simplified tree and data pattern of Figure 1B. In this tree, the two nominal taxa of our phylogeny, \emph{A} and \emph{B}, each exhibit different conditions for the character: taxon \emph{A} has the state 0 (shown in black); while taxon \emph{B} is found in condition 1 (shown in white). Logically, the probability of observing this set of states must be equal to the probability of starting (at the root) in state 0, here written as \(\pi_{0}\), multiplied by the probability of finding the single internal node of our tree in state 0 after elapsed time \(t_{AB}\), \(P(0 | 0, t_{AB})\), multiplied by the probability of the tip \emph{A} being observed in state 0 after elapsed time \(t_{A}\), \(P(0 | 0, t_{A})\), multiplied in turn by the probability of tip \emph{B} being observed in state 1 after elapsed time \(t_{B}\), \(P(1 | 0, t_{B})\) -- and then summed across both possible root state and all four possible internal node state combinations. When written down, this probability is as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+P(0 , 1) = \pi_{0} \times P(0 | 0, t_{AB}) \times P(0 | 0, t_{A}) \times P(1 | 0, t_{B})\\ 
++ \pi_{0} \times P(1 | 0, t_{AB}) \times P(0 | 1, t_{A}) \times P(1 | 1, t_{B})\\ 
++ \pi_{1} \times P(1 | 1, t_{AB}) \times P(0 | 1, t_{A}) \times P(1 | 1, t_{B})\\ 
++ \pi_{1} \times P(0 | 1, t_{AB}) \times P(0 | 0, t_{A}) \times P(1 | 0, t_{B})
+\end{aligned}
+\end{equation}
+
+Though for a two-taxon tree, such as the one shown in Figure 1B, the value of equation (2) is straightforward to compute, doing so in the same way for a tree with three, four, or more species would be increasingly onerous if it involved the explicit enumeration of all possible states at all internal nodes of the phylogeny, as we've done here. Fortunately, Felsenstein (1981) described an efficient ``pruning'' algorithm to compute this probability via a single post-order (tip to root) traversal of the tree.
+
+Now to account for variation in the rate of evolution from edge to edge of our phylogeny, we'll use a discretization of the \(\Gamma\) distribution following Yang (1994). Directly following Yang (1994), we first set \emph{m} rate categories (\emph{k} in Yang 1994, but \emph{m} here to avoid confusion with our \emph{k} different character states). We then subdivide the range of our relative rates, \(r\) (which could theoretically vary from 0 to \(\infty\), the range of a \(\Gamma\)-distributed random variable), into \(m\) evenly spaced bins. To compute the median of each bin, we need to find the values of each \(r_{i}\) (that is, \(r_{1}\), \(r_{2}\), \ldots, \(r_{m}\)) at the percentiles of our \(\Gamma\) distribution that correspond to the midpoints of each of \(m\) bins: \(1/(2m)\), \(3/(2m)\), \ldots, \((2m - 1)/(2m)\) (Yang 1994): quantities that are straightforward to calculate using a computer. Referring back, once again, to our two-taxon case of Figure 1B, the probability of our data in which the relative edge rates vary as a random variable drawn from a discretized, uncorrelated \(\Gamma\) distribution can be approximated as follows, in which \(r_{A}=r_{i}\) indicates that the edge leading to taxon \emph{A} has relative rate \(r_{i}\), and so on.
+
+\begin{equation}
+\begin{aligned}[b]
+P(0,1) = \frac{1}{m^3} \displaystyle\sum_{i=1}^{m} \displaystyle\sum_{j=1}^{m} \displaystyle\sum_{k=1}^{m} P(0,1|r_{A}=r_{i},r_{B}=r_{j},r_{AB}=r_{k})
+\end{aligned}
+\end{equation}
+
+Figure 2 illustrates a complete enumeration of the \(3^3 = 27\) possible ways that \(m = 3\) rates could be distributed across the three edges of our tree of Figure 1B, along with the probability of our observed data at the tips of the tree for \(q_{0,1} = q_{1,0} = 0.1\) and \(\alpha = 0.7\). To calculate the total probability under this model, we would just sum all of these quantities and divide by 27, as given in equation (3), above.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig2-1} \caption{The probability of the tip data from Figure 1B given all the 27 possible ways in which three rate categories (i.e., $m = 3$) could be distributed across the three edges of our two taxon tree, in which $q_{0,1} = q_{1,0} = 0.1$ and $\alpha$ = 0.7. To compute the total probability of the data at the tips of the phylogeny in Figure 1B whilst integrating over discretized $\Gamma$-distributed rates across edges, we can simply sum these values and divide by 27.}\label{fig:Revell-and-Harmon-fig2}
+\end{figure}
+
+As before, this sum would be very onerous to compute (and, indeed, impossible for even relatively modest-sized trees) were it not for the pruning algorithm of Felsenstein (1981). To implement pruning with (discrete) \(\Gamma\)-distributed rate heterogeneity, we also depend on the further equality that for evolution along a single edge of the tree of length \emph{t}, the probability of ending in state 1 given that the edge began in state 0 can be written as follows.
+
+\begin{equation}
+\begin{aligned}[b]
+P(1|0,t) = \frac{1}{m} \displaystyle\sum_{i=1}^{m} P(1|0,t,r=r_{i})
+\end{aligned}
+\end{equation}
+
+That is to say, the probability of starting in condition 0 and then after some time \emph{t} being in state 1, given that the rate of evolution over time \emph{t} is a discretized \(\Gamma\)-distributed random variable with conditions \(r = r_{1}\), \(r_{2}\), \ldots, \(r_{m}\) each with probability \(\frac{1}{m}\), is just the probability of each rate category (here they are even, hence \(\frac{1}{m}\)) times the probability of the state given that rate. More generally, the \emph{matrix} of transition probabilities between states after time \emph{t} can be expressed as a function of probability of each rate category times the exponentiated product \(\mathbf{Q}r_{i}t\), in which \(\exp(\mathbf{X})\) is the matrix exponential of \textbf{X}.
+
+\begin{equation}
+\begin{aligned}[b]
+\mathbf{P}_{t} = \frac{1}{m} \displaystyle\sum_{i=1}^{m} \exp(\mathbf{Q} \times r_{i} \times t)
+\end{aligned}
+\end{equation}
+
+As we can compute the probability of any data pattern on the tree for a given shape parameter (\(\alpha\)), number of rate categories (\(m\)), and transition matrix \textbf{Q}, we can likewise find the set of such values that maximize this probability -- in other words, the Maximum Likelihood (ML) estimate. That's what we will do here. As a side note to this observation, we'll also take this opportunity to observe that it would be relatively straightforward to fit the model of this article using Bayesian MCMC instead of ML. Indeed, the \emph{phytools} function in which this model has been implemented (\texttt{fitgammaMk}), also exports the likelihood expression of the model that \emph{phytools} users could easily pass along their favorite MCMC algorithm. (This would, of course, require the investigator to supply appropriate prior probability distributions for \(\alpha\) and \textbf{Q}, a task that has been contemplated in other literature.)
+
+In this article, we focus on three ways that readers might consider making use of this model, although others are also certainly possible. First, researchers can estimate \(\alpha\), which gives insight into how variable the tempo of evolution has been across the branches or clades of our phylogeny. Low values of \(\alpha\) correspond to high edge-wise rate heterogeneity, whereas high values of \(\alpha\), relatively little rate variation from branch to branch of the tree. Second, investigators can calculate (conditioning on a transition model and ML value for \(\alpha\)) the marginal likelihoods that each edge of the tree is in each of the \(m\) rate categories of the fitted model. This will be done simply by traversing the tree, edge by edge, holding the rate on a given edge constant to each of the \(m\) rate categories, and then computing the marginal probability of the data (integrating over all \(m\) rates across all of the \emph{other} edges of the tree) for each rate. Since these marginal likelihoods can also be interpreted as the posterior probabilities that each edge is in each of our \(m\) rate conditions, a researcher can in turn proceed to use them as weights for the computation of marginal edge rates (as the simple weighted mean of the median rate of each category) for each branch of the phylogeny. This will help researchers to measure precisely how variation in the tempo of evolution is distributed across their phylogenetic tree. Finally, third, investigators might use the model to perform marginal or joint ancestral state reconstruction at the nodes of their tree. This is undertaken in exactly the usual way (see Yang 2014; Revell and Harmon 2022), but in which we integrate over each of the \(m\) rate categories as we traverse the tree. We'll illustrate all three of these applications below.
+
+\subsection{\texorpdfstring{Estimation of \(\alpha\)}{Estimation of \textbackslash alpha}}\label{estimation-of-alpha}
+
+Now that we've expressed, in principle, how one might go about computing the probability of a set of data for any particular value of the (discretized) \(\Gamma\) distribution shape parameter, \(\alpha\), and state transition matrix, \textbf{Q}, we used numerical simulations to establish whether or not we can, in fact, estimate \(\alpha\) in practice. Note that these initial simulations have not been designed to explore the range of conditions (in taxon number, transition models, character state levels, or values of \(\alpha\)) that might be encountered in an empirical study. To the contrary, we decided to use a small number of `maximally-powered' simulations that we anticipated might give us the \emph{best} chance of reliably measuring rate heterogeneity as a proof-of-concept that \(\Gamma\)-distributed rate heterogeneity of a single discrete phenotypic trait can be detected if it exists. We'll broaden our simulation conditions in subsequent sections of this article (focused on statistical power and marginal ancestral state estimation), and also hope to see the wider variety of numerical simulations that will be required to understand the study of rate heterogeneity from a single character in future articles by us or others.
+
+Thus, to (as much as reasonably possible) \emph{maximize} our power to estimate \(\alpha\), we simulated a total of twenty 2,000 species, pure-birth (Yule) phylogenies, rescaling each tree to have a total depth of 10 time unit. We sampled the relative edge rates of each tree from a \(\Gamma\) distribution with a total of \emph{six} different values of the \(\Gamma\) shape parameter, \(\alpha\): 0.25, 0.5, 1.0, 2.0, 4.0, and 8.0. (Note that although our model for estimation is a discretized \(\Gamma\) distribution, we intentionally elected to use a continuous \(\Gamma\) distribution for simulation both here and in subsequent sections of this article. We're thus also testing how reasonably-well our discretization of \(\Gamma\) approximates underlying continuous rate variation among edges.) These simulated values of \(\alpha\) varied from very high rate heterogeneity among edges (\(\alpha \le 1.0\)) to relatively low rate heterogeneity (\(\alpha \ge 4.0\); Figure 1A). Having sampled edge rates, we next simulated a single phenotypic character vector on each tree. We used the following generating value of \textbf{Q} for an ordered, three-state character with conditions \emph{a}, \emph{b}, and \emph{c}, and a single transition rate, \(q=0.5\), between adjacent states.
+
+\[\mathbf{Q} = \begin{bmatrix}-q & q & 0 \\ q & -2q &  q \\ 0 &  q & -q \end{bmatrix} = \begin{bmatrix}-0.5 & 0.5 & 0.0\\ 0.5 & -1.0 & 0.5 \\ 0.0 & 0.5 & -0.5\end{bmatrix}\]
+
+For each tree and data vector, we then proceeded to fit our variable-rate model using ML, specifying the known \emph{structure} of the transition process (that is, the order of character evolution and the number of distinct rate parameters of \textbf{Q}), but simultaneously estimating the instantaneous transition rate (\emph{q}) and \(\Gamma\) shape parameter (\(\alpha\)) -- arbitrarily fixing the number of rate categories (\(m\)) to \(m = 8\).
+
+In addition to fitting our \(\Gamma\) rate heterogeneous model, for each tree and dataset we \emph{also} fit a rate homogeneous (i.e., `standard') M\emph{k} model, likewise fixing the model structure to its generating value. We then measured the difference in log-likelihood between the generating rate heterogeneous (\(\Gamma\)) model and our fitted rate homogeneous (M\emph{k}) model. For each phylogeny and set of simulated data, we undertook a total of ten optimization iterations of both the \(\Gamma\) and standard M\emph{k} models, each with random starting values for \(\alpha\) (if applicable) and the transition rate between states (\emph{q}), to help ensure convergence to the ML solution in each case. We invariably assumed a prior distribution at the root (\(\pi\)) following FitzJohn et al.~(2009; this has been described as treating the root state as a `nuisance parameter' of the model).
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig3-1} \caption{Results from an analysis of simulated datasets generated with $\Gamma$-distributed rate heterogeneity under various values of $\alpha$. (\textbf{A}) The distribution of estimated values of $\alpha$ for each generating value. (\textbf{B}) The difference in log-likelihood between the best-fitting $\Gamma$ model and the standard M\emph{k} rate-homogeneous model. In both panels, the grey box gives the 25\% to 75\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers (shown with grey dots). The maximum upper-bound for $\alpha$ during optimization was set to $1 \times 10^6$, but estimated values of $\alpha > 100$ were reset to 100 for plotting.}\label{fig:Revell-and-Harmon-fig3}
+\end{figure}
+
+Figure 3A shows the distribution of ML estimated values of \(\alpha\) for each simulated level of rate heterogeneity. As a general rule, for relatively low values of \(\alpha\) (that is, high rate heterogeneity among edges: \(\alpha \le 1.0\)), the mean and median estimated values of \(\alpha\) were quite close to their corresponding generating quantities: highlighted by the horizontal dashed blue lines (Figure 3A). For increasing generating values of \(\alpha\) (that is, \emph{decreasing} rate heterogeneity among edges), estimated \(\alpha\) tended to be upwardly biased. This pattern was especially marked for \(\alpha = 8.0\), in which many optimization iterations hit the pre-specified upper-bound of optimization (\(\alpha = 1,000\); Figure 3A).
+
+Measurement of the difference in model fit between the \(\Gamma\) rate heterogeneous model and the M\emph{k} model showed a largely consistent trend (Figure 3B). In particular, low \(\alpha\) (that is, \emph{high} rate heterogeneity among edges) tended to result in much higher model fit of the variable-rate \(\Gamma\) model compared to the standard M\emph{k} model, whereas this advantage declined for increasing \(\alpha\) (decreasing rate heterogeneity among edges). Notably, even on a tree with 2,000 tips, none of 20 simulation replicates met \(\Delta\)log-likelihood criterion for statistical significance at the 0.05 level when generating \(\alpha\) was equal to \(\alpha = 8.0\): the lowest level of rate heterogeneity simulated (Figure 3B).
+
+\subsection{Power analysis}\label{power-analysis}
+
+To measure power in a statistical test for significant evidence of rate heterogeneity, we conducted the following simulation. First, we simulated 100 stochastic phylogenies under a Yule (pure-birth) model containing each of 50, 100, 200, 400, 800, and 1,600 species (600 simulations in total), and then rescaled each tree to have a total root to tip depth of 1.0. Next, on each tree we simulated a single discrete character with \(\Gamma\)-distributed rate heterogeneity among edges using an \(\alpha\) shape parameter of \(\alpha = 0.5\), along with the same three-state \textbf{Q} matrix as in our prior analysis (see above).
+
+For each simulated tree and data vector, we then proceeded to fit our variable-rate model using ML, specifying the known structure of the model, as before, but simultaneously estimating the instantaneous transition rate (\emph{q}) and shape parameter of \(\Gamma\), while setting the number of rate categories (\(m\)) to \(m = 8\). In addition to fitting our \(\Gamma\) rate heterogeneous model, for each tree and dataset we also fit a rate homogenous M\emph{k} model, likewise fixing the model structure to its generating value. We then computed a P-value based on a likelihood-ratio test with one degree of freedom: the difference in the number of estimated parameters between our two models. As before, to help ensure convergence to the ML solution we invariably undertook a total of ten optimization iterations of both the \(\Gamma\) and standard M\emph{k} models, each with random starting values for \(\alpha\) (if applicable) and the transition rate between states (\emph{q}). Finally, we assumed a prior distribution at the root (\(\pi\)) following FitzJohn et al. (2009).
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig4-1} \caption{Results from an analysis of simulated datasets generated with $\Gamma$-distributed rate heterogeneity with $\alpha = 0.5$ for phylogenies containing various numbers of taxa. (\textbf{A}) The distribution of estimated values of $\alpha$ for each tree size. As in Figure 3, the grey box gives the 25\% to 75\% inter-quartile range, the horizontal black line the median, and the whiskers the range, excluding outliers.(\textbf{B}) Estimated power: the proportion of statistical test in which $\Gamma$ rate heterogeneity was significant in a likelihood-ratio test with one degree of freedom, the difference in parameter complexity between the M\emph{k} and $\Gamma$ models.}\label{fig:Revell-and-Harmon-fig4}
+\end{figure}
+
+The results from our power analysis are shown in Figure 4. We found that the median estimated value of \(\alpha\) tended to be centered relatively close to the generating value of \(\alpha = 0.5\) across all simulation conditions (Figure 4A). The variance among simulations, however, was \emph{very} high for relatively small trees: such as \(N = 50\) and \(N = 100\) (Figure 4A). Commensurate with this observation, we found that power to reject the null hypothesis of rate homogeneity tended to be barely above the nominal \(\alpha\) (acceptable type I error) level of 0.05 for small trees, and only increased to around 80\% for simulated phylogenies containing as many as 1,600 tip taxa (Figure 4B).
+
+\subsection{Ancestral state reconstruction}\label{ancestral-state-reconstruction}
+
+Lastly, we measured the accuracy of ancestral state estimation under the \(\Gamma\) model of rate heterogeneity among edges. To do this, we first simulated two hundred 500 taxon pure-birth (Yule) phylogenetic trees, each scaled to a total depth of 1.0. As for prior sections, on each tree we simulated the evolution of a single, three-state discrete character evolving under the same stochastic process (with \(\Gamma\) rate heterogeneity \(\alpha = 0.5\)) and value of \textbf{Q} as in our power analysis of the prior section, but in which we also recorded the simulated ancestral states for all internal nodes of the phylogeny.
+
+Next, for each simulated tree and data vector we proceeded to fit our variable-rate model using ML, specifying the known structure of the model (as in our other simulation analyses), but simultaneously estimating the instantaneous transition rate (\emph{q}) and \(\alpha\) shape parameter of \(\Gamma\). As before, we fixed the number of rate categories of our discrete \(\Gamma\) distribution (\(m\)) to be \(m = 8\). In addition to fitting our \(\Gamma\) rate heterogeneous model, for each tree and dataset we also fit a rate homogenous M\emph{k} model, likewise fixing the model structure to its generating value. As before, we undertook a total of ten optimization iterations of both the \(\Gamma\) and standard M\emph{k} models, each with random starting values for \(\alpha\) (if applicable) and the transition rate between states (\emph{q}), to help ensure convergence. As before, we assumed a FitzJohn et al. (2009) root node prior distribution.
+
+For each fitted M\emph{k} and \(\Gamma\) model of each simulated tree and dataset, we undertook marginal ancestral state estimation following Pagel (1999; Yang 2006). Marginal ancestral state estimation involves traversing the tree by node, and at each node computing the probability of the data given each state of the character, conditioning on the tree and fitted character model, but integrating across all possible states at all other nodes of the tree. These node likelihoods are then normalized (scaled) to sum to 1.0, at which point they can be properly interpreted as the (empirical Bayes) posterior probabilities that each node is in each of the observed conditions of our character (Yang 2006, 2014). To measure the accuracy of our ancestral state reconstructions under both the standard M\emph{k} and \(\Gamma\) models, we simply computed the average, node-wise product of the known, simulated states (represented as vectors of 0s and 1s) and the marginal scaled likelihoods from our procedure of ancestral state estimation. This average product can range from 0 (if all nodes are estimated confidently but completely inaccurately) to 1 (reflecting high confidence in the correct ancestral conditions across all nodes). Intermediate measured accuracy comprises both the scenario of an intermediate portion of nodes inferred correctly with high confidence (and the remainder confidently wrongly), or equally low confidence across all nodes. Since here we're focused on identifying any difference in accuracy between M\emph{k} and \(\Gamma\) models that might arise for data generated under a \(\Gamma\) model of rate heterogeneity, we're not too preoccupied in differentiating these latter possibilities. Lastly, we computed the difference in raw accuracy and divided it by the accuracy of the M\emph{k} estimates to measure the proportional improvement in accuracy of the \(\Gamma\) compared to M\emph{k} model when the former was true. (A positive value of 0.05, for example, would indicate that measured accuracy was about 5\% better for the \(\Gamma\) model than the M\emph{k} model, whereas a value of -0.05 would suggest the converse.)
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig5-1} \caption{Normalized difference in accuracy of marginal ancestral state estimation under the M\emph{k} and $\Gamma$ model when the data were simulated under the $\Gamma$ model. Raw accuracy was invariably higher for the generating model. See main text for more details.}\label{fig:Revell-and-Harmon-fig5}
+\end{figure}
+
+Figure 5 shows the distribution of scaled differences in accuracy between the \(\Gamma\) and M\emph{k} models in marginal ancestral state estimation from our 200 simulations. Invariably, estimates obtained using the \(\Gamma\) model, which was the generating evolutionary scenario of the simulations, were more accurate than those obtained from the M\emph{k} model (Figure 5), with a mean improvement in accuracy of about 5.3\%.
+
+\subsection{Empirical case study}\label{empirical-case-study}
+
+To explore the behavior of our method using empirical data we elected to analyze a dataset of forefoot and hindfoot digit number in squamate reptiles originally published by Brandley et al. (2008). These data consist of a single estimated tree and observations of 0, 1, 2, \ldots, 5 digits in the fore and hindfeet of 257 species of squamates, plus the tuatara (\emph{Sphenodon punctatus}). A very small number of species were reported in Brandley et al.~(2008) as exhibiting polymorphism in digit number. Since the authors scored these taxa with a digit number tally equal to the \emph{average} number of digits (and because they consist of relatively few species of the dataset), we simply rounded polymorphic taxa to the closest whole digit.
+
+In our recently published book (Revell and Harmon 2022) we analyzed a subset of the Brandley et al. (2008) data for hindfoot digit number only and discovered that directional (sequential loss) and ordered (sequential loss and gain) M\emph{k} models had much better support (accounting for model parameter complexity) compared to other transition models between states. As such, here we've elected to focus on only this category of model.
+
+For each of the fore and hindfoot digit number traits, we fit a total of eight models: four M\emph{k} models and four models with \(\Gamma\)-distributed rate heterogeneity among edges. These models were as follows (in each case, the number of parameters to be estimated is indicated in parentheses): a directional (loss-only) M\emph{k} model with one rate of digit loss (1); a directional \(\Gamma\) model with one rate of digit loss (2); an ordered (loss-and-gain) M\emph{k} model with one rate of loss and a second rate of gain (2); an ordered \(\Gamma\) model with one rate of loss and another rate of gain (3); a directional (loss-only) M\emph{k} model with a different rate of loss for each character level (5); a directional \(\Gamma\) model with a different rate of loss for each level (6); an ordered (loss-and-gain) M\emph{k} model with different rates of loss and gain for each character level (10); finally, an ordered \(\Gamma\) model with different rates of loss and gain for each level (11). As in our simulations, above, we used a FitzJohn et al. (2009) root prior, ran ten optimization iterations per model with random starting values, and set the number of rate categories of the discretized \(\Gamma\) distribution to \(m = 8\). For the best-fitting \(\Gamma\) model for each trait, we also computed the marginal edge rates and scaled likelihoods (marginal ancestral states) at all nodes of the tree.
+
+Table 1 shows a summary of the model fits, estimated value of \(\alpha\) (if applicable), model parameter complexity, and model support for each of the eight trait evolution models we fit to forefoot digit number. In comparing between each \emph{pair} of otherwise equivalent models with and without \(\Gamma\) rate heterogeneity among edges, information theoretic model support (measured via AIC) was consistently superior for the rate heterogeneous model (\(12.0 \le \Delta AIC \le 379.9\) across all model pairs; Table 1). ML estimated values of \(\alpha\) across all models were invariably low (\(0.047 \le \alpha \le 0.104\)), indicating relatively \emph{high} rate heterogeneity among edges in the best-fitting \(\Gamma\) models. The best-supported model overall was unambiguously the ordered, multi-rate, \(\Gamma\) rate heterogeneous model (Table 1). Consequently, we used this model to estimate marginal edge rates of the character and scaled likelihoods (ancestral states) at all internal nodes of the phylogeny. This reconstruction is illustrated in Figure 6A.
+
+\begin{table}
+
+\caption{\label{tab:unnamed-chunk-10}Log-likelihood, estimated value of $\alpha$ (if applicable), number of parameters, AIC, and model weights for five different discrete character evolution models of forefoot digit number in squamate reptiles, with and without $\Gamma$ rate heterogeneity among edges. See main text for more details.}
+\centering
+\begin{tabular}[t]{l|r|r|r|r|r}
+\hline
+  & log(L) & estimated $\alpha$ & d.f. & AIC & weight\\
+\hline
+directional one-rate M\emph{k} & -386.5609 & -- & 1 & 775.1218 & 0.00000\\
+\hline
+directional one-rate $\Gamma$ & -195.6262 & 0.06039 & 2 & 395.2524 & 0.00001\\
+\hline
+ordered two-rate M\emph{k} & -338.1719 & -- & 2 & 680.3438 & 0.00000\\
+\hline
+ordered two-rate $\Gamma$ & -192.0290 & 0.04669 & 3 & 390.0580 & 0.00013\\
+\hline
+directional five-rate M\emph{k} & -197.5535 & -- & 5 & 405.1069 & 0.00000\\
+\hline
+directional five-rate $\Gamma$ & -190.1696 & 0.08672 & 6 & 392.3392 & 0.00004\\
+\hline
+ordered ten-rate M\emph{k} & -182.0694 & -- & 10 & 384.1389 & 0.00251\\
+\hline
+ordered ten-rate $\Gamma$ & -175.0838 & 0.10363 & 11 & 372.1675 & 0.99731\\
+\hline
+\end{tabular}
+\end{table}
+\begin{figure}
+\includegraphics[width=1\linewidth]{Revell-and-Harmon.fitgammaMk.PeerJ_files/figure-latex/Revell-and-Harmon-fig6-1} \caption{Phylogeny of squamate reptiles from Brandley et al. (2008) showing the number of digits in the forefoot (\textbf{A}) or hindfoot (\textbf{B}) of each species, estimated ancestral states under an ordered $\Gamma$ model, and estimated edge rates. Larger pie charts were used for all nodes in which no state had a marginal scaled likelihood $> 0.95$. See main text for more details.}\label{fig:Revell-and-Harmon-fig6}
+\end{figure}
+
+Table 2 shows a summary of the model fits, parameter complexity, and model support for each of the eight trait evolution models we fit to hindfoot digit number. Much as we found for forefoot digit number, comparing between each pair of models with and without \(\Gamma\) rate heterogeneity among edges, model support was consistently higher for the \(\Gamma\) model (\(14.2 \le \Delta AIC \le 293.3\) across all model pairs; Table 2). As for forefoot digit number, rate heterogeneity in the best-fitting \(\Gamma\) models was substantial (all \(0.033 \le \alpha \le 0.266\)). The best-supported model overall was the ordered, multi-rate, \(\Gamma\) rate heterogeneous model, with an Akaike weight of around 0.84. The second best-supported model was the directional, multi-rate, \(\Gamma\) model (Table 2). We used the best-supported ordered model to estimate marginal edge rates of the character and scaled likelihoods (ancestral states) at all internal nodes of the tree. This reconstruction is illustrated in Figure 6B.
+
+\begin{table}
+
+\caption{\label{tab:unnamed-chunk-13}Log-likelihood, estimated value of $\alpha$ (if applicable), number of parameters, AIC, and model weights for five different discrete character evolution models of hindfoot digit number in squamate reptiles, with and without $\Gamma$ rate heterogeneity among edges. See main text for more details.}
+\centering
+\begin{tabular}[t]{l|r|r|r|r|r}
+\hline
+  & log(L) & estimated $\alpha$ & d.f. & AIC & weight\\
+\hline
+directional one-rate M\emph{k} & -357.9915 & -- & 1 & 717.9829 & 0.00000\\
+\hline
+directional one-rate $\Gamma$ & -210.3328 & 0.04761 & 2 & 424.6656 & 0.00323\\
+\hline
+ordered two-rate M\emph{k} & -324.5030 & -- & 2 & 653.0060 & 0.00000\\
+\hline
+ordered two-rate $\Gamma$ & -209.5280 & 0.03284 & 3 & 425.0559 & 0.00266\\
+\hline
+directional five-rate M\emph{k} & -211.7965 & -- & 5 & 433.5930 & 0.00004\\
+\hline
+directional five-rate $\Gamma$ & -202.4479 & 0.26559 & 6 & 416.8958 & 0.15709\\
+\hline
+ordered ten-rate M\emph{k} & -203.8508 & -- & 10 & 427.7016 & 0.00071\\
+\hline
+ordered ten-rate $\Gamma$ & -195.7757 & 0.25896 & 11 & 413.5515 & 0.83628\\
+\hline
+\end{tabular}
+\end{table}
+
+Biologically, these results tell us that there is strong evidence for rate heterogeneity in digit gain and loss across squamate reptiles. Some transitions occur more rapidly than others -- which we already knew from previous analyses. This analysis gives us the additional information that particular lineages have highly elevated transition rates compared to others. There remains ambiguity as to whether digits are both gained and lost (the ordered model) or only lost (the directional model): though the former is clearly better supported for forefoot (Table 1) than in hindfoot digits (Table 2).
+
+\section{Software}\label{software}
+
+The model of this article is implemented in the function \texttt{fitgammaMk} of the \emph{phytools} (Revell 2012; Revell 2024) R package. All analyses of this study were undertaken in R (R Core Team 2023) using \emph{phytools}. \emph{phytools}, in turn, depends heavily on the object classes and methods of the core R phylogenetics package, \emph{ape} (Paradis et al. 2004; Popescu et al. 2012; Paradis and Schliep 2019). At the time of writing, \emph{phytools} also depended on or imported from a number of other R packages including \emph{clusterGeneration} (Qiu and Joe. 2020), \emph{coda} (Plummer et al. 2006), \emph{combinat} (Chasalow 2012), \emph{doParallel} (Microsoft and Weston 2022a), \emph{expm} (Maechler et al. 2023), \emph{foreach} (Microsoft and Weston 2022b), \emph{maps} (Becker et al. 2022), \emph{MASS} (Venables and Ripley 2002), \emph{mnormt} (Azzalini and Genz 2022), \emph{nlme} (Pinheiro and Bates 2000; Pinheiro et al. 2022), \emph{numDeriv} (Gilbert and Varadhan 2019), \emph{optimParallel} (Gerber and Furrer 2019), \emph{phangorn} (Schliep 2011), \emph{plotrix} (Lemon 2006), and \emph{scatterplot3d} (Ligges and Mächler 2003). The \emph{geiger} (Harmon et al. 2008; Pennell et al. 2014) and \emph{viridisLite} (Garnier et al. 2023) packages were also used for some analyses and visualizations of this study.
+
+\section{Discussion}\label{discussion}
+
+Over the past several decades, phylogenies have become pervasive in many disciplines of the biological sciences and beyond. For example, phylogenies are now employed extensively in biomedical research, in infectious disease epidemiology, in genomics, and in anthropology, among other fields (e.g., Mace and Holden 2005; Singh et al. 2009; Colijn and Gardy 2014; Brown et al. 2017; Somarelli et al. 2017). Increasingly, phylogeneticists combine the estimated tree (typically obtained from aligned nucleotide or amino acid sequences) with phenotypic trait data in an effort to learn something about how the features and attributes of living organisms have evolved over time (O'Meara 2012; Harmon 2019; Revell and Harmon 2022). For trait data that is discretely-valued, such as the presence or absence of a physical feature or a categorical behavioral trait, the typical model used to approximate character evolution on a phylogeny is one that's been called the M\emph{k} model (Pagel 1999; Lewis 2001; Revell and Harmon 2022; Revell 2024). The M\emph{k} model describes a continuous-time Markov chain with \emph{k} states, and we often assume that this process is constant over all the branches and nodes of our reconstructed tree (but see Marazzi et al. 2012; Beaulieu et al. 2013; Boyko and Beaulieu 2021).
+
+In the present article we introduce a totally new model in which we assume that the edge-wise rate of trait evolution is distributed as a random variable drawn from a \(\Gamma\) distribution, similar to the \(\Gamma\)-distributed rate heterogeneity among sites model often employed in molecular phylogenetic tree inference methods (e.g., Yang 1994; Felsenstein 2004). The \(\Gamma\) distribution is a flexible two parameter distribution which has a general form determined by the parameter \(\alpha\). When the second parameter of the \(\Gamma\) distribution, \(\beta\), is set to \(\beta = \alpha\), then the mean of the distribution is 1.0 and the variance decreases monotonically with increasing \(\alpha\). Indeed, as \(\alpha \rightarrow \infty\) (but in practice for \(\alpha << \infty\)), our \(\Gamma\) model converges on a homogeneous rate M\emph{k}. Conversely, as \(\alpha \rightarrow \frac{1}\infty\) (but in practice for \(\alpha >> \frac{1}\infty\)) the \(\Gamma\) model of this paper converges on a two-rate process in which some branches evolve with a very high rate, and most not at all. There is substantial biological justification for considering models that allow rates to vary across branches in a phylogenetic tree.
+
+When the generating process is \(\Gamma\)-distributed rates among edges, we found that it was possible to estimate \(\alpha\) reasonably well -- particularly if \(\alpha\) was low and especially for larger trees (Figures 3, 4). On the other hand, we found that the variance in estimated \(\alpha\) increased substantially for larger values of \(\alpha\) (i.e., low rate heterogeneity) and for phylogenies with fewer tips (Figures 3, 4). We also found that the method had modest power to reject the null hypothesis of constant rates. In particular, even for relatively high rate heterogeneity (\(\alpha = 0.5\)) power was only around 50\% for \(N = 800\). We found that taking into account rate heterogeneity when present had a highly significant impact on ancestral state estimation (Figure 5). In general, estimated ancestral states obtained for data simulated under \(\Gamma\)-distributed rate heterogeneity among edges were measurably more reliable when this rate heterogeneity was taken into account in the fitted model (Tables 1, 2, Figure 6).
+
+Lastly, we analyzed a dataset of fore and rearfoot digit number in 257 species of squamate reptiles (plus the tuatara, \emph{Sphenodon punctatus}) using a phylogeny and dataset from Brandley et al. (2008). We found significant evidence for rate heterogeneity in digit number evolution, with all \(\Gamma\) models fitting substantively better than their rate homogeneous counterparts.
+
+In conclusion, we believe that the analyses we illustrate in this article can be an important addition to the growing toolbox of methodologies for studying character evolution on trees. We hope that its statistical properties, use cases, and limitations will be examined further in future research.
+
+\section{Data availability}\label{data-availability}
+
+This article was written in Rmarkdown (Xie et al. 2018, 2020; Allaire et al. 2023), and developed with the help of both \emph{bookdown} (Xie 2016, 2023) and the posit Rstudio IDE (RStudio Team 2020). All data and markdown code necessary to exactly rebuild the submitted version of this article (including its analyses and figures) are available at \url{https://github.com/liamrevell/Revell-and-Harmon.fitgammaMk}.
+
+\section{Acknowledgments}\label{acknowledgments}
+
+This article had no direct contributors beyond the authors; however, we appreciate M. Brandley for sharing the data from his 2008 study which we have used in many workshops, as well as herein for our empirical case study.
+
+\section{Funding}\label{funding}
+
+This research was funded by grants from the National Science Foundation (DBI‐1759940) and FONDECYT, Chile (1201869), to Liam J. Revell. The funders had no role in study design, data collection and analysis, decision to publish, or preparation of the manuscript.
+
+\section*{Literature Cited}\label{literature-cited}
+\addcontentsline{toc}{section}{Literature Cited}
+
+\phantomsection\label{refs}
+\begin{CSLReferences}{1}{0}
+\bibitem[\citeproctext]{ref-Allaire2023}
+Allaire, J., Y. Xie, J. McPherson, J. Luraschi, K. Ushey, A. Atkins, H. Wickham, J. Cheng, W. Chang, and R. Iannone. 2023. \href{https://github.com/rstudio/rmarkdown}{{R}markdown: Dynamic documents for {R}}.
+
+\bibitem[\citeproctext]{ref-Azzalini2022}
+Azzalini, A., and A. Genz. 2022. \href{http://azzalini.stat.unipd.it/SW/Pkg-mnormt/}{The {R} package \texttt{mnormt}: The multivariate normal and \(t\) distributions (version 2.1.1)}.
+
+\bibitem[\citeproctext]{ref-Beaulieu2013-zo}
+Beaulieu, J. M., B. C. O'Meara, and M. J. Donoghue. 2013. Identifying hidden rate changes in the evolution of a binary morphological character: The evolution of plant habit in campanulid angiosperms. Syst. Biol. 62:725--737.
+
+\bibitem[\citeproctext]{ref-Becker2022}
+Becker, R. A., A. R. Wilks, R. Brownrigg, T. P. Minka, and A. Deckmyn. 2022. \href{https://CRAN.R-project.org/package=maps}{{maps}: Draw geographical maps}.
+
+\bibitem[\citeproctext]{ref-Boyko2021}
+Boyko, J. D., and J. M. Beaulieu. 2021. \href{https://doi.org/10.1111/2041-210x.13534}{Generalized hidden markov models for phylogenetic comparative datasets}. Methods in Ecology and Evolution 12:468--478. Wiley.
+
+\bibitem[\citeproctext]{ref-Boyko2022}
+Boyko, J. D., and J. M. Beaulieu. 2022. \href{https://doi.org/10.1093/sysbio/syac066}{Reducing the biases in false correlations between discrete characters}. Systematic Biology 72:476--488. Oxford University Press (OUP).
+
+\bibitem[\citeproctext]{ref-Brandley2008}
+Brandley, M. C., J. P. Huelsenbeck, and J. J. Wiens. 2008. \href{https://doi.org/10.1111/j.1558-5646.2008.00430.x}{Rates and patterns in the evolution of snake-like body form in squamate reptiles: Evidence for repeated re-evolution of lost digits and long-term persistence of intermediate body forms}. Evolution 62:2042--2064. Wiley.
+
+\bibitem[\citeproctext]{ref-Brown2017}
+Brown, D., D. Smeets, B. Székely, D. Larsimont, A. M. Szász, P.-Y. Adnet, F. Rothé, G. Rouas, Z. I. Nagy, Z. Faragó, A.-M. Tőkés, M. Dank, G. Szentmártoni, N. Udvarhelyi, G. Zoppoli, L. Pusztai, M. Piccart, J. Kulka, D. Lambrechts, C. Sotiriou, and C. Desmedt. 2017. \href{https://doi.org/10.1038/ncomms14944}{Phylogenetic analysis of metastatic progression in breast cancer using somatic mutations and copy number aberrations}. Nature Communications 8. Springer Science; Business Media LLC.
+
+\bibitem[\citeproctext]{ref-Butler2004}
+Butler, M. A., and A. A. King. 2004. \href{https://doi.org/10.1086/426002}{Phylogenetic comparative analysis: A modeling approach for adaptive evolution}. The American Naturalist 164:683--695. University of Chicago Press.
+
+\bibitem[\citeproctext]{ref-Chasalow2012}
+Chasalow, S. 2012. \href{https://CRAN.R-project.org/package=combinat}{{combinat}: Combinatorics utilities}.
+
+\bibitem[\citeproctext]{ref-Colijn2014}
+Colijn, C., and J. Gardy. 2014. \href{https://doi.org/10.1093/emph/eou018}{Phylogenetic tree shapes resolve disease transmission patterns}. Evolution, Medicine, and Public Health 2014:96--108. Oxford University Press (OUP).
+
+\bibitem[\citeproctext]{ref-Drummond2010}
+Drummond, A. J., and M. A. Suchard. 2010. \href{https://doi.org/10.1186/1741-7007-8-114}{Bayesian random local clocks, or one rate to rule them all}. {BMC} Biology 8.
+
+\bibitem[\citeproctext]{ref-Felsenstein1981}
+Felsenstein, J. 1981. \href{https://doi.org/10.1007/bf01734359}{Evolutionary trees from DNA sequences: A maximum likelihood approach}. Journal of Molecular Evolution 17:368--376. Springer Science; Business Media LLC.
+
+\bibitem[\citeproctext]{ref-Felsenstein2004-ab}
+Felsenstein, J. 2004. {Inferring Phylogenies}. {Sinauer Associates}, Sunderland, MA.
+
+\bibitem[\citeproctext]{ref-FitzJohn2009}
+FitzJohn, R. G., W. P. Maddison, and S. P. Otto. 2009. \href{https://doi.org/10.1093/sysbio/syp067}{Estimating trait-dependent speciation and extinction rates from incompletely resolved phylogenies}. Systematic Biology 58:595--611.
+
+\bibitem[\citeproctext]{ref-Garnier2023}
+Garnier, Simon, Ross, Noam, Rudis, Robert, Camargo, A. Pedro, Sciaini, Marco, Scherer, and Cédric. 2023. \href{https://doi.org/10.5281/zenodo.4678327}{{viridis(Lite)} - colorblind-friendly color maps for {R}}.
+
+\bibitem[\citeproctext]{ref-Gerber2019}
+Gerber, F., and R. Furrer. 2019. \href{https://doi.org/10.32614/RJ-2019-030}{optimParallel: An {R} package providing a parallel version of the {L}-BFGS-{B} optimization method}. The R Journal 11:352--358.
+
+\bibitem[\citeproctext]{ref-Gilbert2019}
+Gilbert, P., and R. Varadhan. 2019. \href{https://CRAN.R-project.org/package=numDeriv}{numDeriv: Accurate numerical derivatives}.
+
+\bibitem[\citeproctext]{ref-Harmon2019-on}
+Harmon, L. J. 2019. Phylogenetic comparative methods: Learning from trees. Ecoevorxiv.
+
+\bibitem[\citeproctext]{ref-Harmon2008-id}
+Harmon, L. J., J. T. Weir, C. D. Brock, R. E. Glor, and W. Challenger. 2008. {GEIGER}: Investigating evolutionary radiations. Bioinformatics 24:129--131.
+
+\bibitem[\citeproctext]{ref-Huelsenbeck2000}
+Huelsenbeck, J. P., B. Larget, and D. Swofford. 2000. \href{https://doi.org/10.1093/genetics/154.4.1879}{A compound poisson process for relaxing the molecular clock}. Genetics 154:1879--1892. Oxford University Press (OUP).
+
+\bibitem[\citeproctext]{ref-King2015}
+King, B., and M. S. Y. Lee. 2015. \href{https://doi.org/10.1093/sysbio/syv005}{Ancestral state reconstruction, rate heterogeneity, and the evolution of reptile viviparity}. Systematic Biology 64:532--544.
+
+\bibitem[\citeproctext]{ref-Lemon2006}
+Lemon, J. 2006. Plotrix: A package in the red light district of {R}. R-News 6:8--12.
+
+\bibitem[\citeproctext]{ref-Lewis2001}
+Lewis, P. O. 2001. \href{https://doi.org/10.1080/106351501753462876}{A likelihood approach to estimating phylogeny from discrete morphological character data}. Systematic Biology 50:913--925.
+
+\bibitem[\citeproctext]{ref-Ligges2003}
+Ligges, U., and M. Mächler. 2003. \href{https://doi.org/10.18637/jss.v008.i11}{Scatterplot3d - an {R} package for visualizing multivariate data}. Journal of Statistical Software 8:1--20.
+
+\bibitem[\citeproctext]{ref-Mace2005}
+Mace, R., and C. Holden. 2005. \href{https://doi.org/10.1016/j.tree.2004.12.002}{A phylogenetic approach to cultural evolution}. Trends in Ecology and Evolution 20:116--121. Elsevier BV.
+
+\bibitem[\citeproctext]{ref-Maechler2023}
+Maechler, M., C. Dutang, and V. Goulet. 2023. \href{https://CRAN.R-project.org/package=expm}{Expm: Matrix exponential, log, 'etc'}.
+
+\bibitem[\citeproctext]{ref-Mahler2010}
+Mahler, D. L., L. J. Revell, R. E. Glor, and J. B. Losos. 2010. \href{https://doi.org/10.1111/j.1558-5646.2010.01026.x}{Ecological opportunity and the rate of morphological evolution in the diversification of {G}reater {A}ntillean anoles: Opportunity and rate in {A}nolis lizards}. Evolution 64:2731--2745. Wiley.
+
+\bibitem[\citeproctext]{ref-Marazzi2012}
+Marazzi, B., C. Ané, M. F. Simon, A. Delgado-Salinas, M. Luckow, and M. J. Sanderson. 2012. \href{https://doi.org/10.1111/j.1558-5646.2012.01720.x}{Locating evolutionary precursors on a phylogenetic tree}. Evolution 66:3918--3930.
+
+\bibitem[\citeproctext]{ref-Microsoft2022-a}
+Microsoft, and S. Weston. 2022a. \href{https://CRAN.R-project.org/package=doParallel}{doParallel: Foreach parallel adaptor for the 'parallel' package}.
+
+\bibitem[\citeproctext]{ref-Microsoft2022-b}
+Microsoft, and S. Weston. 2022b. \href{https://CRAN.R-project.org/package=foreach}{Foreach: Provides foreach looping construct}.
+
+\bibitem[\citeproctext]{ref-OMeara2012}
+O'Meara, B. C. 2012. \href{https://doi.org/10.1146/annurev-ecolsys-110411-160331}{Evolutionary inferences from phylogenies: A review of methods}. Annual Review of Ecology, Evolution, and Systematics 43:267--285. Annual Reviews.
+
+\bibitem[\citeproctext]{ref-OMeara2006}
+O'Meara, B. C., C. Ané, M. J. Sanderson, and P. C. Wainwright. 2006. \href{https://doi.org/10.1111/j.0014-3820.2006.tb01171.x}{Testing for different rates of continuous trait evolution using likelihood}. Evolution 60:922--933. Wiley.
+
+\bibitem[\citeproctext]{ref-Pagel1994-ui}
+Pagel, M. 1994. Detecting correlated evolution on phylogenies: A general method for the comparative analysis of discrete characters. Proc. R. Soc. Lond. B Biol. Sci. 255:37--45. The Royal Society.
+
+\bibitem[\citeproctext]{ref-Pagel1999}
+Pagel, M. 1999. \href{https://doi.org/10.1080/106351599260184}{The maximum likelihood approach to reconstructing ancestral character states of discrete characters on phylogenies}. Systematic Biology 48:612--622. Oxford University Press (OUP).
+
+\bibitem[\citeproctext]{ref-Paradis2004-xk}
+Paradis, E., J. Claude, and K. Strimmer. 2004. {APE}: Analyses of phylogenetics and evolution in {R} language. Bioinformatics 20:289--290.
+
+\bibitem[\citeproctext]{ref-Paradis2019-zp}
+Paradis, E., and K. Schliep. 2019. {ape} 5.0: An environment for modern phylogenetics and evolutionary analyses in {R}. Bioinformatics 35:526--528.
+
+\bibitem[\citeproctext]{ref-Pennell2014-mo}
+Pennell, M. W., J. M. Eastman, G. J. Slater, J. W. Brown, J. C. Uyeda, R. G. FitzJohn, M. E. Alfaro, and L. J. Harmon. 2014. Geiger v2. 0: An expanded suite of methods for fitting macroevolutionary models to phylogenetic trees. Bioinformatics 30:2216--2218.
+
+\bibitem[\citeproctext]{ref-Pinheiro2000}
+Pinheiro, J. C., and D. M. Bates. 2000. \href{https://doi.org/10.1007/b98882}{Mixed-effects models in s and s-PLUS}. Springer, New York.
+
+\bibitem[\citeproctext]{ref-Pinheiro2022}
+Pinheiro, J., D. Bates, and R Core Team. 2022. \href{https://CRAN.R-project.org/package=nlme}{Nlme: Linear and nonlinear mixed effects models}.
+
+\bibitem[\citeproctext]{ref-Plummer2006}
+Plummer, M., N. Best, K. Cowles, and K. Vines. 2006. \href{https://journal.r-project.org/archive/}{CODA: Convergence diagnosis and output analysis for MCMC}. R News 6:7--11.
+
+\bibitem[\citeproctext]{ref-Popescu2012-ui}
+Popescu, A.-A., K. T. Huber, and E. Paradis. 2012. {ape} 3.0: New tools for distance-based phylogenetics and evolutionary analysis in {R}. Bioinformatics 28:1536--1537.
+
+\bibitem[\citeproctext]{ref-Qiu2020}
+Qiu, W., and H. Joe. 2020. \href{https://CRAN.R-project.org/package=clusterGeneration}{clusterGeneration: Random cluster generation (with specified degree of separation)}.
+
+\bibitem[\citeproctext]{ref-RCoreTeam2023}
+R Core Team. 2023. \href{https://www.R-project.org/}{R: A language and environment for statistical computing}. R Foundation for Statistical Computing, Vienna, Austria.
+
+\bibitem[\citeproctext]{ref-Revell2024}
+Revell, L. J. 2024. \href{https://doi.org/10.7717/peerj.16505}{{phytools} 2.0: An updated r ecosystem for phylogenetic comparative methods (and other things)}. PeerJ 12:e16505. PeerJ.
+
+\bibitem[\citeproctext]{ref-Revell2012}
+Revell, L. J. 2012. {phytools}: An {R} package for phylogenetic comparative biology (and other things). Methods Ecol. Evol. 3:217--223.
+
+\bibitem[\citeproctext]{ref-Revell2022-book}
+Revell, L. J., and L. J. Harmon. 2022. Phylogenetic comparative methods in {R}. Princeton University Press, Princeton, NJ.
+
+\bibitem[\citeproctext]{ref-Revell2021}
+Revell, L. J., K. P. Schliep, D. L. Mahler, and T. Ingram. 2021. Testing for heterogeneous rates of discrete character evolution on phylogenies, doi: \href{https://doi.org/10.1101/2021.09.14.460362}{10.1101/2021.09.14.460362}. Cold Spring Harbor Laboratory.
+
+\bibitem[\citeproctext]{ref-Revell2022a}
+Revell, L. J., K. S. Toyama, and D. L. Mahler. 2022. \href{https://doi.org/10.7717/peerj.13910}{A simple hierarchical model for heterogeneity in the evolutionary correlation on a phylogenetic tree}. PeerJ 10:e13910. PeerJ.
+
+\bibitem[\citeproctext]{ref-Rstudio2020}
+RStudio Team. 2020. \href{http://www.rstudio.com/}{R{S}tudio: Integrated development environment for {R}}. RStudio, PBC., Boston, MA.
+
+\bibitem[\citeproctext]{ref-Sander2021}
+Sander, P. M., E. M. Griebeler, N. Klein, J. V. Juarbe, T. Wintrich, L. J. Revell, and L. Schmitz. 2021. \href{https://doi.org/10.1126/science.abf5787}{Early giant reveals faster evolution of large body size in ichthyosaurs than in cetaceans}. Science 374. American Association for the Advancement of Science (AAAS).
+
+\bibitem[\citeproctext]{ref-Schliep2011-my}
+Schliep, K. P. 2011. {phangorn}: Phylogenetic analysis in {R}. Bioinformatics 27:592--593.
+
+\bibitem[\citeproctext]{ref-Singh2009}
+Singh, N. D., A. M. Larracuente, T. B. Sackton, and A. G. Clark. 2009. \href{https://doi.org/10.1146/annurev.ecolsys.110308.120214}{Comparative genomics on the drosophila phylogenetic tree}. Annual Review of Ecology, Evolution, and Systematics 40:459--480. Annual Reviews.
+
+\bibitem[\citeproctext]{ref-Somarelli2017}
+Somarelli, J. A., K. E. Ware, R. Kostadinov, J. M. Robinson, H. Amri, M. Abu-Asab, N. Fourie, R. Diogo, D. Swofford, and J. P. Townsend. 2017. \href{https://doi.org/10.1016/j.bbcan.2016.10.006}{PhyloOncology: Understanding cancer through phylogenetic analysis}. Biochimica et Biophysica Acta (BBA) - Reviews on Cancer 1867:101--108. Elsevier BV.
+
+\bibitem[\citeproctext]{ref-Thorne1998}
+Thorne, J. L., H. Kishino, and I. S. Painter. 1998. \href{https://doi.org/10.1093/oxfordjournals.molbev.a025892}{Estimating the rate of evolution of the rate of molecular evolution}. Molecular Biology and Evolution 15:1647--1657. Oxford University Press (OUP).
+
+\bibitem[\citeproctext]{ref-Venables2002}
+Venables, W. N., and B. D. Ripley. 2002. \href{https://www.stats.ox.ac.uk/pub/MASS4/}{Modern applied statistics with s}. Fourth. Springer, New York.
+
+\bibitem[\citeproctext]{ref-Wu2008}
+Wu, J., E. Susko, and A. J. Roger. 2008. \href{https://doi.org/10.1016/j.ympev.2007.06.020}{An independent heterotachy model and its implications for phylogeny and divergence time estimation}. Molecular Phylogenetics and Evolution 46:801--806. Elsevier BV.
+
+\bibitem[\citeproctext]{ref-Xie2023}
+Xie, Y. 2023. \href{https://github.com/rstudio/bookdown}{Bookdown: Authoring books and technical documents with r markdown}.
+
+\bibitem[\citeproctext]{ref-Xie2016}
+Xie, Y. 2016. \href{https://bookdown.org/yihui/bookdown}{Bookdown: Authoring books and technical documents with {R} markdown}. Chapman; Hall/CRC, Boca Raton, Florida.
+
+\bibitem[\citeproctext]{ref-Xie2018}
+Xie, Y., J. J. Allaire, and G. Grolemund. 2018. \href{https://bookdown.org/yihui/rmarkdown}{R markdown: The definitive guide}. Chapman; Hall/CRC, Boca Raton, Florida.
+
+\bibitem[\citeproctext]{ref-Xie2022}
+Xie, Y., C. Dervieux, and E. Riederer. 2020. \href{https://bookdown.org/yihui/rmarkdown-cookbook}{R markdown cookbook}. Chapman; Hall/CRC, Boca Raton, Florida.
+
+\bibitem[\citeproctext]{ref-Yang2006-kb}
+Yang, Z. 2006. Computational molecular evolution. Oxford University Press, London, England.
+
+\bibitem[\citeproctext]{ref-Yang1994}
+Yang, Z. 1994. \href{https://doi.org/10.1007/bf00160154}{Maximum likelihood phylogenetic estimation from DNA sequences with variable rates over sites: Approximate methods}. Journal of Molecular Evolution 39:306--314. Springer Science; Business Media LLC.
+
+\bibitem[\citeproctext]{ref-Yang2014-uo}
+Yang, Z. 2014. Molecular evolution. Oxford University Press, London, England.
+
+\bibitem[\citeproctext]{ref-Yoder2000}
+Yoder, A. D., and Z. Yang. 2000. \href{https://doi.org/10.1093/oxfordjournals.molbev.a026389}{Estimation of primate speciation dates using local molecular clocks}. Molecular Biology and Evolution 17:1081--1090. Oxford University Press (OUP).
+
+\end{CSLReferences}
+
+
+
+\end{document}
