@@ -46,7 +46,7 @@ for(i in 1:length(alpha)){
     trees<-pbtree(n=ntaxa[j],scale=10,nsim=nrep)
     for(k in 1:nrep){
       ## simulate data
-      rates<-rgamma(n=nrow(trees[[k]]$edge),alpha,alpha)
+      rates<-rgamma(n=nrow(trees[[k]]$edge),alpha[i],alpha[i])
       sim_tree<-trees[[k]]
       sim_tree$edge.length<-trees[[k]]$edge.length*rates
       x<-sim.Mk(sim_tree,Q)
