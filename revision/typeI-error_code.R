@@ -46,7 +46,7 @@ for(i in 1:length(ntaxa)){
     x<-sim.Mk(trees[[j]],Q)
     x<-to.matrix(x,letters[1:ncol(Q)])
     plotTree(trees[[j]],ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
-    tmp<-bquote('N'==.(round(ntaxa[j]))*","~alpha==.(quote(infinity)))
+    tmp<-bquote('N'==.(round(ntaxa[i]))*","~alpha==.(quote(infinity)))
     title(main=tmp)
     fits<-foreach(k=1:niter)%dopar%{
       result<-NA
@@ -81,4 +81,4 @@ for(i in 1:length(ntaxa)){
   }
 }
 stopCluster(cl=mc)
-## save(typeIerrorRESULTS,file="data/typeIerrorRESULTS.rda")
+save(typeIerrorRESULTS,file="data/typeIerrorRESULTS.rda")
