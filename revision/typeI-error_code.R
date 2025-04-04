@@ -12,8 +12,8 @@ lr.test<-function(obj1,obj2){
     pchisq(LR,df=attr(l2,"df")-attr(l1,"df"),
       lower.tail=FALSE))
 }
-niter<-2 #10
-nrep<-2 #100
+niter<-10
+nrep<-100
 ntaxa<-c(50,100,200,400,800,1600)
 ## set number of cores to use
 ncores<-min(c(parallel::detectCores()-2,
