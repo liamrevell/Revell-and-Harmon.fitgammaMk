@@ -1,6 +1,4 @@
 library(phytools)
-
-set.seed(99)
 library(foreach)
 library(parallel)
 library(doParallel)
@@ -52,8 +50,12 @@ for(i in 1:length(ntaxa)){
       result<-NA
       class(result)<-"try-error"
       while(inherits(result,"try-error")){
-        result<-try(phytools::fitgammaMk(trees[[j]],x,model=MODEL,
-          min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8))
+        result<-try(
+          R.utils::withTimeout({
+            phytools::fitgammaMk(trees[[j]],x,model=MODEL,
+              min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,
+              nrates=8)
+          },timeout=1200,onTimeout="error"),silent=TRUE)
       }
       result
     }
@@ -63,8 +65,11 @@ for(i in 1:length(ntaxa)){
       result<-NA
       class(result)<-"try-error"
       while(inherits(result,"try-error")){
-        result<-try(phytools::fitMk(trees[[j]],x,model=MODEL,
-        pi="fitzjohn",rand_start=TRUE))
+        result<-try(
+          R.utils::withTimeout({
+            phytools::fitMk(trees[[j]],x,model=MODEL,
+              pi="fitzjohn",rand_start=TRUE)
+          },timeout=1200,onTimeout="error"),silent=TRUE)
       }
       result
     }
@@ -76,6 +81,7 @@ for(i in 1:length(ntaxa)){
           lr.test(fit_null,best_fit))
     if(((i-1)*nrep+j)>20) ii<-((i-1)*nrep+j)-19:0
     else ii<-1:((i-1)*nrep+j)
+    cat("\nCurrent time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
     print(round(typeIerrorRESULTS[ii,,drop=FALSE],5))
     cat("\n")
   }
