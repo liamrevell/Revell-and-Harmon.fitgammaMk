@@ -90,6 +90,7 @@ for(i in 1:length(alpha)){
         if(((i-1)*(nrep*length(ntaxa))+(j-1)*nrep+k)>20) 
           ii<-((i-1)*(nrep*length(ntaxa))+(j-1)*nrep+k)-19:0
         else ii<-1:((i-1)*(nrep*length(ntaxa))+(j-1)*nrep+k)
+      cat("\nCurrent time:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n\n")
       print(round(powerRESULTS[ii,],5))
       cat("\n")
     }
