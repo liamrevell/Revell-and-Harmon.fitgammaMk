@@ -3,6 +3,7 @@ library(phytools)
 library(foreach)
 library(parallel)
 library(doParallel)
+library(R.utils)
 ## LR test function
 lr.test<-function(obj1,obj2){
   l1<-logLik(obj1)
@@ -58,8 +59,11 @@ for(i in 1:length(alpha)){
         result<-NA
         class(result)<-"try-error"
         while(inherits(result,"try-error")){
-          result<-try(phytools::fitgammaMk(trees[[k]],x,model=MODEL,
-            min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8))
+          result<-try(
+            withTimeout({
+              phytools::fitgammaMk(trees[[k]],x,model=MODEL,
+                min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8)
+            },timeout=1200,onTimeout="error"),silent=TRUE)
         }
         result
       }
@@ -69,8 +73,11 @@ for(i in 1:length(alpha)){
         result<-NA
         class(result)<-"try-error"
         while(inherits(result,"try-error")){
-          result<-try(phytools::fitMk(trees[[k]],x,model=MODEL,
-            pi="fitzjohn",rand_start=TRUE))
+          result<-try(
+            withTimeout({
+              phytools::fitMk(trees[[k]],x,model=MODEL,
+                pi="fitzjohn",rand_start=TRUE)
+            },timeout=1200,onTimeout="error"),silent=TRUE)
         }
         result
       }
