@@ -57,29 +57,37 @@ for(i in 1:length(alpha)){
       fits<-foreach(l=1:niter)%dopar%{
         result<-NA
         class(result)<-"try-error"
-        while(inherits(result,"try-error")){
+        try_count<-0
+        while(inherits(result,"try-error")&&try_count<10){
           result<-try(
             R.utils::withTimeout({
               phytools::fitgammaMk(trees[[k]],x,model=MODEL,
                 min.alpha=0.001,pi="fitzjohn",rand_start=TRUE,nrates=8)
             },timeout=1200,onTimeout="error"),silent=TRUE)
+          try_count<-try_count+1
         }
         result
       }
+      keep<-sapply(fits,function(x) !inherits(x,"try-error"))
+      fits<-fits[keep]
       logL<-sapply(fits,logLik)
       best_fit<-fits[[which(logL==max(logL))[1]]]
       fits<-foreach(l=1:niter)%dopar%{
         result<-NA
         class(result)<-"try-error"
+        try_count<-0
         while(inherits(result,"try-error")){
           result<-try(
             R.utils::withTimeout({
               phytools::fitMk(trees[[k]],x,model=MODEL,
                 pi="fitzjohn",rand_start=TRUE)
             },timeout=1200,onTimeout="error"),silent=TRUE)
+          try_count<-try_count+1
         }
         result
       }
+      keep<-sapply(fits,function(x) !inherits(x,"try-error"))
+      fits<-fits[keep]
       logL<-sapply(fits,logLik)
       fit_null<-fits[[which(logL==max(logL))[1]]]
       powerRESULTS[(i-1)*(nrep*length(ntaxa))+(j-1)*nrep+k,]<-
