@@ -46,7 +46,7 @@ for(i in 1:length(ntaxa)){
     plotTree(trees[[j]],ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
     tmp<-bquote('N'==.(round(ntaxa[i]))*","~alpha==.(quote(infinity)))
     title(main=tmp)
-    fits<-foreach(k=1:niter)%dopar%{
+    fits<-foreach(k=1:niter,.errorhandling="pass")%dopar%{
       result<-NA
       class(result)<-"try-error"
       try_count<-0
@@ -65,7 +65,7 @@ for(i in 1:length(ntaxa)){
     fits<-fits[keep]
     logL<-sapply(fits,logLik)
     best_fit<-fits[[which(logL==max(logL))[1]]]
-    fits<-foreach(k=1:niter)%dopar%{
+    fits<-foreach(k=1:niter,.errorhandling="pass")%dopar%{
       result<-NA
       class(result)<-"try-error"
       try_count<-0
