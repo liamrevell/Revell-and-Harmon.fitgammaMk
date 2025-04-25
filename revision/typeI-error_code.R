@@ -46,10 +46,10 @@ for(i in 1:length(ntaxa)){
     plotTree(trees[[j]],ftype="off",lwd=1,mar=c(1.1,1.1,4.1,1.1))
     tmp<-bquote('N'==.(round(ntaxa[i]))*","~alpha==.(quote(infinity)))
     title(main=tmp)
-    fits<-foreach(k=1:niter,.errorhandling="pass")%dopar%{
+    fits<-foreach(l=1:niter,.errorhandling="pass",.packages=c("phytools","R.utils"))%dopar%{
+      try_count<-0
       result<-NA
       class(result)<-"try-error"
-      try_count<-0
       while(inherits(result,"try-error")&&try_count<10){
         result<-try(
           R.utils::withTimeout({
@@ -59,16 +59,20 @@ for(i in 1:length(ntaxa)){
           },timeout=1200,onTimeout="error"),silent=TRUE)
         try_count<-try_count+1
       }
-      result
+      if(inherits(result,"try-error")){
+          list(success=FALSE,attempt=try_count,result=NULL)
+        }else{
+          list(success=TRUE,attempt=try_count,result=result)
+      }
     }
-    keep<-sapply(fits,function(x) !inherits(x,"try-error"))
-    fits<-fits[keep]
+    fits<-lapply(fits,function(x) if (x$success) x$result else NULL)
     logL<-sapply(fits,logLik)
     best_fit<-fits[[which(logL==max(logL))[1]]]
-    fits<-foreach(k=1:niter,.errorhandling="pass")%dopar%{
+    
+    fits<-foreach(l=1:niter,.errorhandling="pass",.packages=c("phytools","R.utils"))%dopar%{
+      try_count<-0
       result<-NA
       class(result)<-"try-error"
-      try_count<-0
       while(inherits(result,"try-error")&try_count<10){
         result<-try(
           R.utils::withTimeout({
@@ -77,10 +81,13 @@ for(i in 1:length(ntaxa)){
           },timeout=1200,onTimeout="error"),silent=TRUE)
         try_count<-try_count+1
       }
-      result
+      if(inherits(result,"try-error")){
+        list(success=FALSE,attempt=try_count,result=NULL)
+      }else{
+        list(success=TRUE,attempt=try_count,result=result)
+      }
     }
-    keep<-sapply(fits,function(x) !inherits(x,"try-error"))
-    fits<-fits[keep]
+    fits<-lapply(fits,function(x) if (x$success) x$result else NULL)
     logL<-sapply(fits,logLik)
     fit_null<-fits[[which(logL==max(logL))[1]]]
     typeIerrorRESULTS[(i-1)*nrep+j,]<-
